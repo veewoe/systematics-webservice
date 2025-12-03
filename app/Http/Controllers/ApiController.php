@@ -90,8 +90,8 @@
     ]);
 }
 
-        // Stop Hold Inquiry
         
+// Stop Hold Inquiry
 public function stopHoldInquiry(Request $request)
 {
     $validated = $request->validate([
@@ -99,65 +99,125 @@ public function stopHoldInquiry(Request $request)
         'Ctl3'   => ['nullable', 'string', 'max:10'],
         'Ctl4'   => ['nullable', 'string', 'max:10'],
         'AcctId' => ['required', 'string', 'max:32'],
+        'verb'   => ['nullable', 'in:GET,POST'], 
     ]);
 
-    $base = [
-        "TSRqHdr" => $this->commonHeader(),
-        "Ctl1"    => "0008",
-        "Ctl2"    => $validated['Ctl2'] ?? "",
-        "Ctl3"    => $validated['Ctl3'] ?? "",
-        "Ctl4"    => $validated['Ctl4'] ?? "",
-        "AcctId"  => $validated['AcctId'],
-        "RecsRequested" => "0001",
-        // ... other fields left blank per spec
+    $acctRaw = preg_replace('/\D+/', '', $validated['AcctId']); // keep digits
+    $acctId = str_pad($acctRaw, 13, '0', STR_PAD_LEFT);
+
+    $ctl1 = '0008';
+    $ctl2 = isset($validated['Ctl2']) ? str_pad($validated['Ctl2'], 4, '0', STR_PAD_LEFT) : '';
+    $ctl3 = isset($validated['Ctl3']) ? str_pad($validated['Ctl3'], 4, '0', STR_PAD_LEFT) : '';
+    $ctl4 = isset($validated['Ctl4']) ? str_pad($validated['Ctl4'], 4, '0', STR_PAD_LEFT) : '';
+    $payload = [
+        "WIIRSTHOperation" => [
+            "TSRqHdr" => $this->commonHeader(), // EmployeeId, ApplCode, etc.
+            // Many Systematics endpoints expect TS detail under a second object
+            "TSRqDtl" => [
+                "Ctl1"          => $ctl1,
+                "Ctl2"          => $ctl2,
+                "Ctl3"          => $ctl3,
+                "Ctl4"          => $ctl4,
+                "AcctId"        => $acctId,
+                "RecsRequested" => "0001",
+                // Leave optional filters blank per spec
+                "StopInd"               => "",
+                "HoldInd"               => "",
+                "HoldAllInd"            => "",
+                "SpecialInstructionsInd"=> "",
+                "SuspectInd"            => "",
+                "StopRangeInd"          => "",
+                "SuspectRangeInd"       => "",
+                "StartCheckNum"         => "",
+                "EndCheckNum"           => "",
+                "StartDt"               => "",
+                "EndDt"                 => "",
+                "LowAmt"                => "",
+                "HighAmt"               => "",
+                "LowSeq"                => "",
+                "HighSeq"               => "",
+                "TranCd"                => "",
+                "StopHoldAmt"           => "",
+                "ExpirationDt"          => "",
+                "ExpirationDays"        => "",
+                "IssueDt"               => "",
+                "InitiatedBy"           => "",
+                "StopHoldType"          => "",
+                "StopHoldDesc"          => "",
+                "AllFundsInd"           => "",
+                "ForceBalNegative"      => "",
+                "WaiveFeeInd"           => "",
+                "UniversalDesc"         => "",
+                "StopHoldSeq"           => "",
+            ],
+        ],
     ];
 
-    try {
-        // Prefer POST with JSON; change to GET+query if upstream requires it.
-        $payload = ["WIIRSTHOperation" => $base];
+    // ---- Decide verb: default GET (per reference), fallback to POST if needed ----
+    $verb = $validated['verb'] ?? config('systematics.wiirsth_verb', 'GET');
 
-        $response = \Illuminate\Support\Facades\Http::timeout(10)
-            ->retry(2, 200)
-            ->withHeaders(['Content-Type' => 'application/json'])
-            ->post($this->stopHoldUrl, $payload);
+    try {
+        // Log the outbound payload once for troubleshooting
+        Log::debug('StopHold request', ['verb' => $verb, 'url' => $this->stopHoldUrl, 'payload' => $payload]);
+
+        $http = \Illuminate\Support\Facades\Http::timeout(15)->retry(2, 250)
+            ->acceptJson()
+            ->withHeaders(['Content-Type' => 'application/json']);
+
+        if (strtoupper($verb) === 'GET') {
+            // Some gateways support GET with body; Laravel's send() allows this
+            $response = $http->send('GET', $this->stopHoldUrl, ['json' => $payload]);
+        } else {
+            $response = $http->post($this->stopHoldUrl, $payload);
+        }
 
         if (!$response->successful()) {
+            Log::warning('StopHold non-200', ['status' => $response->status(), 'body' => $response->body()]);
             return back()->withErrors([
                 'api' => "StopHold inquiry failed (HTTP {$response->status()})."
             ])->withInput();
         }
 
-        $data  = $response->json();
+        $data = $response->json();
+        Log::debug('StopHold raw response', ['data' => $data]);
+
+        // ---- Safely unwrap response ----
         $opRes = $data['WIIRSTHOperationResponse'] ?? [];
         $tsHdr = $opRes['TSRsHdr'] ?? [];
-        $rs0   = ($opRes['WIIRSTHRs'] ?? [])[0] ?? [];
+        $rsList = $opRes['WIIRSTHRs'] ?? [];
+        $rs0 = is_array($rsList) && count($rsList) ? $rsList[0] : [];
 
-        // Helper to format Ymd or special values (0, 999999) safely
+        // ---- Date formatter: supports 8-digit Ymd, 0, and 999999(no expiry) ----
         $fmtYmd = function ($val) {
-            if (empty($val) || !is_numeric($val)) return 'N/A';
-            if ((int)$val === 0) return 'N/A';
-            if ((int)$val === 999999) return 'No Expiry';
-            $str = str_pad((string)$val, 8, '0', STR_PAD_LEFT);
+            if ($val === null || $val === '' || !is_numeric($val)) return 'N/A';
+            $ival = (int)$val;
+            if ($ival === 0) return 'N/A';
+            if ($ival === 999999) return 'No Expiry';
+            // Most dates are Ymd (8); if 6 (Ymd w/o century), we can try to upcast
+            $str = (string)$val;
+            if (strlen($str) === 6) {
+                // naive upcast to 20yy if needed; adjust per bank rule
+                $str = '20' . $str; // e.g., 201708 -> 20201708 (if upstream does 6-digit)
+            }
+            $str = str_pad($str, 8, '0', STR_PAD_LEFT);
             try {
                 return \Carbon\Carbon::createFromFormat('Ymd', $str)->format('M d, Y');
             } catch (\Throwable $e) {
                 return 'N/A';
             }
         };
-
-        // Summary details for the header table
         $details = [
-            'Account ID'   => $rs0['AcctId']        ?? 'N/A',
-            'Ctl1'         => $rs0['Ctl1']          ?? 'N/A',
-            'Ctl2'         => $rs0['Ctl2']          ?? 'N/A',
-            'Ctl3'         => $rs0['Ctl3']          ?? 'N/A',
-            'Ctl4'         => $rs0['Ctl4']          ?? 'N/A',
-            'Records Returned' => $rs0['RecsReturned'] ?? '0',
-            'More Indicator'   => $rs0['MoreInd']      ?? 'N/A',
-            'Status'       => trim($tsHdr['ProcessMessage'] ?? 'N/A'),
+            'Account ID'        => $rs0['AcctId']        ?? $acctId,
+            'Ctl1'              => $rs0['Ctl1']          ?? $ctl1,
+            'Ctl2'              => $rs0['Ctl2']          ?? ($ctl2 ?: 'N/A'),
+            'Ctl3'              => $rs0['Ctl3']          ?? ($ctl3 ?: 'N/A'),
+            'Ctl4'              => $rs0['Ctl4']          ?? ($ctl4 ?: 'N/A'),
+            'Records Returned'  => $rs0['RecsReturned']  ?? '0',
+            'More Indicator'    => $rs0['MoreInd']       ?? 'N/A',
+            'Status'            => trim($tsHdr['ProcessMessage'] ?? 'N/A'),
         ];
 
-        // Row items for StopHoldList
+        // ---- Build table rows ----
         $list = $rs0['StopHoldList'] ?? [];
         $items = [];
         foreach ($list as $row) {
@@ -179,22 +239,36 @@ public function stopHoldInquiry(Request $request)
                 'Waive Fee'         => $row['WaiveFeeInd']          ?? '—',
                 'Initiated By'      => $row['InitiatedBy']          ?? '—',
                 'Branch'            => $row['Branch']               ?? '—',
-                'Description'       => $row['StopHoldDesc']         ?? '—',
+                'Description'       => $row['StopHoldDesc']         ?? (
+                    // If UniversalDesc carries the message, show the first line
+                    isset($row['UniversalDesc'][0]['UniversalDescLine'])
+                        ? $row['UniversalDesc'][0]['UniversalDescLine']
+                        : '—'
+                ),
             ];
         }
 
-        // Render like loan inquiry
+        // ---- Handle no items gracefully ----
+        if (empty($items)) {
+            $details['Status'] = $details['Status'] ?: 'PROCESS COMPLETE';
+            $items = []; // keep empty; view can show "No stop/hold found"
+        }
+
         return view('stop-hold-inq', [
             'details' => $details,
             'items'   => $items,
         ]);
     } catch (\Throwable $e) {
-        \Illuminate\Support\Facades\Log::error('StopHold exception', ['message' => $e->getMessage()]);
+        \Illuminate\Support\Facades\Log::error('StopHold exception', [
+            'message' => $e->getMessage(),
+            'trace'   => $e->getTraceAsString(),
+        ]);
         return back()->withErrors([
             'api' => 'Unexpected error while performing StopHold inquiry.'
         ])->withInput();
     }
 }
+
 
 
 
@@ -288,7 +362,7 @@ public function holdAmountAdd(Request $request)
             // 'raw'      => $data,
         ]);
     } catch (\Throwable $e) {
-        \Log::error('Hold Amount Add exception', ['message' => $e->getMessage()]);
+        Log::error('Hold Amount Add exception', ['message' => $e->getMessage()]);
         return back()->withErrors([
             'api' => 'Unexpected error while adding hold amount.'
         ])->withInput();

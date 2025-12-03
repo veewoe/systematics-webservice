@@ -1,3 +1,4 @@
+
 <?php
 
 use Illuminate\Support\Facades\Route;
@@ -30,7 +31,3 @@ Route::post('/hold-amount-add', [ApiController::class, 'holdAmountAdd']);
 
 Route::post('/hold-delete', [ApiController::class, 'holdDelete']);
 Route::post('/stop-hold-all-add', [ApiController::class, 'holdAllAdd']);
-
-
-
-

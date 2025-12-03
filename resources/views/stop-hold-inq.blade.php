@@ -6,6 +6,28 @@
     </div>
 
     <div class="card-body">
+        {{-- TSRsHdr quick status (Process Message, Severity, NextDay) --}}
+        @isset($tsHdr)
+            <div class="mb-3">
+                <div class="d-flex flex-wrap gap-3 align-items-center">
+                    <span class="badge bg-info text-dark">
+                        Status: {{ $tsHdr['ProcessMessage'] ?? '—' }}
+                    </span>
+                    @if(!empty($tsHdr['Severity']))
+                        <span class="badge bg-secondary">
+                            Severity: {{ $tsHdr['Severity'] }}
+                        </span>
+                    @endif
+                    @if(!empty($tsHdr['NextDay']))
+                        <span class="badge bg-light border">
+                            Next Day: {{ $tsHdr['NextDay'] }}
+                        </span>
+                    @endif
+                </div>
+            </div>
+        @endisset
+
+        {{-- Summary table --}}
         <div class="table-responsive">
             <table class="table table-bordered mb-4">
                 @forelse($details as $key => $value)
@@ -73,5 +95,38 @@
                 </tbody>
             </table>
         </div>
+
+        {{-- Optional: Transaction Status Messages (bottom card) --}}
+        @isset($tsMsgs)
+            <h5 class="mt-4">Transaction Status Messages</h5>
+            <div class="table-responsive">
+                <table class="table table-bordered">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Code</th>
+                            <th>Severity</th>
+                            <th>Text</th>
+                            <th>Account</th>
+                            <th>Program</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($tsMsgs as $m)
+                            <tr>
+                                <td>{{ $m['Code'] }}</td>
+                                <td>{{ $m['Severity'] }}</td>
+                                <td>{{ $m['Text'] }}</td>
+                                <td>{{ $m['Account'] }}</td>
+                                <td>{{ $m['Program'] }}</td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="5" class="text-center text-muted">No status messages.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        @endisset
     </div>
 </div>
