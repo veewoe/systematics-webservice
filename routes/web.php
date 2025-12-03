@@ -1,7 +1,6 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\WebController;
 
 /*
 |--------------------------------------------------------------------------
@@ -16,4 +15,22 @@ use App\Http\Controllers\WebController;
 
 
 
-Route::get('/main', [WebController::class, 'show']);
+use App\Http\Controllers\ApiController;
+
+
+
+Route::get('/', [ApiController::class, 'index']);
+
+// ALS Loan Inquiry
+Route::post('/loans-inq', [ApiController::class, 'loansInquiry']);
+
+// IM Stop Hold
+Route::post('/stop-hold-inq', [ApiController::class, 'stopHoldInquiry']);
+Route::post('/hold-amount-add', [ApiController::class, 'holdAmountAdd']);
+
+Route::post('/hold-delete', [ApiController::class, 'holdDelete']);
+Route::post('/stop-hold-all-add', [ApiController::class, 'holdAllAdd']);
+
+
+
+
