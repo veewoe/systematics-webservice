@@ -63,18 +63,7 @@
                 <input class="form-control mb-2" name="AcctId" placeholder="Account ID" required>
                 <input class="form-control mb-2" name="StopHoldAmt" placeholder="Hold Amount" required>
                 <button type="button" class="btn btn-primary" onclick="sendRequest('/hold-amount-add','holdAmountForm')">Add Hold Amount</button>
-            </form>
-        </div>
-
-        <!-- Hold Delete -->
-        <div class="tab-pane fade" id="holddelete" role="tabpanel">
-            <form id="holdDeleteForm">@csrf
-                <input class="form-control mb-2" name="Ctl2" placeholder="Ctl2 (e.g., 0001)" required>
-                <input class="form-control mb-2" name="Ctl3" placeholder="Ctl3 (e.g., 0000)" required>
-                <input class="form-control mb-2" name="Ctl4" placeholder="Ctl4 (e.g., 1084)" required>
-                <input class="form-control mb-2" name="AcctId" placeholder="Account ID (e.g., 0000070001524)" required>
-                <input class="form-control mb-2" name="StopHoldSeq" placeholder="Sequence Number (e.g., 09005)" required>
-                <button type="button" class="btn btn-danger" onclick="sendRequest('/hold-delete','holdDeleteForm')">Delete Hold</button>
+                <button type="button" class="btn btn-primary" onclick="sendRequest('/stop-hold-all-add','stopAllForm')">Hold All Add</button>
             </form>
         </div>
 
@@ -88,7 +77,20 @@
                 <button type="button" class="btn btn-primary" onclick="sendRequest('/stop-hold-all-add','stopAllForm')">Submit</button>
             </form>
         </div>
+
+                <!-- Hold Delete -->
+        <div class="tab-pane fade" id="holddelete" role="tabpanel">
+            <form id="holdDeleteForm">@csrf
+                <input class="form-control mb-2" name="Ctl2" placeholder="Ctl2 (e.g., 0001)" required>
+                <input class="form-control mb-2" name="Ctl3" placeholder="Ctl3 (e.g., 0000)" required>
+                <input class="form-control mb-2" name="Ctl4" placeholder="Ctl4 (e.g., 1084)" required>
+                <input class="form-control mb-2" name="AcctId" placeholder="Account ID (e.g., 0000070001524)" required>
+                <input class="form-control mb-2" name="StopHoldSeq" placeholder="Sequence Number (e.g., 09005)" required>
+                <button type="button" class="btn btn-danger" onclick="sendRequest('/hold-delete','holdDeleteForm')">Delete Hold</button>
+            </form>
+        </div>
     </div>
+
 
     <h3 class="mt-4">Response:</h3>
     <div id="response" class="mt-3"></div>

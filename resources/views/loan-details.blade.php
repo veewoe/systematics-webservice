@@ -1,4 +1,4 @@
-
+<!-- loan-details.blade.php -->
 <div class="card shadow-sm">
     <div class="card-header bg-primary text-white">
         <h4>Loan Details</h4>
