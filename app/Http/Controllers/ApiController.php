@@ -2,6 +2,7 @@
 
     namespace App\Http\Controllers;
 
+    use Illuminate\Support\Facades\Validator;
     use Illuminate\Http\Request;
     use Illuminate\Support\Facades\Log;
     use Illuminate\Support\Facades\Http;
@@ -42,58 +43,167 @@
             ];
         }
 
+
+        
+/**
+ * Perform upstream call with GET → POST fallback.
+ * Set $preferGetFirst=false for endpoints that are POST-only.
+ */
+private function callUpstream(string $url, array $payload, bool $preferGetFirst = true, int $timeout = 10)
+{
+    if ($preferGetFirst) {
+        // Try GET (with JSON body) first
+        $response = \Illuminate\Support\Facades\Http::timeout($timeout)
+            ->retry(2, 200)
+            ->withHeaders(['Content-Type' => 'application/json'])
+            ->withBody(json_encode($payload), 'application/json')
+            ->get($url);
+
+        if ($response->successful()) {
+            return $response;
+        }
+
+        // Fallback: POST
+        return \Illuminate\Support\Facades\Http::timeout($timeout)
+            ->retry(2, 200)
+            ->withHeaders(['Content-Type' => 'application/json'])
+            ->post($url, $payload);
+    }
+
+    // POST-only path
+    return \Illuminate\Support\Facades\Http::timeout($timeout)
+        ->retry(2, 200)
+        ->asJson()
+        ->post($url, $payload);
+}
+
+
+private function upstreamErrorMessage(?array $tsHdr, bool $rowsPresent): ?string
+{
+    $tsHdr    = $tsHdr ?? [];
+    $severity = strtoupper(trim((string)($tsHdr['MaxSeverity'] ?? '')));
+    if ($severity === 'E' || !$rowsPresent) {
+        $status  = ($tsHdr['TrnStatus'] ?? [])[0] ?? [];
+        $msgCode = trim((string)($status['MsgCode'] ?? 'UNKNOWN'));
+        $msgText = trim((string)($status['MsgText'] ?? 'Upstream error'));
+        return "{$msgCode}: {$msgText} Severity {$severity}";
+    }
+    return null;
+}
+
+
+private function parseOperationResponse(array $data, string $opResponseKey, string $rowsKey): array
+{
+    $opRes = $data[$opResponseKey] ?? [];
+    $tsHdr = $opRes['TSRsHdr'] ?? [];
+    $rows  = $opRes[$rowsKey] ?? [];
+    return [$tsHdr, $rows];
+}
+
         // ALS Loan Inquiry
         
-        public function loansInquiry(Request $request)
-        {
-            $payload = [
+public function loansInquiry(Request $request)
+{
+    // Validate controls + account ID
+    $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
+        'Ctl1'   => ['nullable', 'string', 'max:10'],
+        'Ctl2'   => ['required', 'string', 'max:10'],
+        'Ctl3'   => ['required', 'string', 'max:10'],
+        'Ctl4'   => ['required', 'string', 'max:10'],
+        'AcctId' => ['required'],
+    ], [
+        'AcctId.required' => 'Account ID is required.',
+    ]);
+
+    if ($validator->fails()) {
+        return view('loan-details', [
+            'error'       => $validator->errors()->first('AcctId') ?? 'Invalid input.',
+            'details'     => [],
+            'delinquency' => [],
+        ]);
+    }
+
+    // Inputs
+    $ctl1   = trim((string) $request->input('Ctl1', '0008'));
+    $ctl2   = trim((string) $request->input('Ctl2', ''));
+    $ctl3   = trim((string) $request->input('Ctl3', ''));
+    $ctl4   = trim((string) $request->input('Ctl4', ''));
+    $acctId = trim((string) $request->input('AcctId'));
+
+    // Payload
+    $payload = [
         "WILRACTOperation" => [
-            "TSRqHdr" => $this->commonHeader(),
-            "Ctl1" => "0008",
-            "Ctl2" => $request->input('Ctl2'),
-            "Ctl3" => $request->input('Ctl3'),
-            "Ctl4" => $request->input('Ctl4'),
-            "AcctId" => $request->input('AcctId'),
-            "EffectiveDt" => ""
-            ]
-        ];
-
-    $response = Http::withHeaders(['Content-Type' => 'application/json'])
-        ->post($this->loanUrl, $payload);
-
-    $data = $response->json();
-    $loan = $data['WILRACTOperationResponse']['WILRACTRs'][0] ?? [];
-
-    $details = [
-        'Account ID' => $loan['AcctId'] ?? 'N/A',
-        'Customer Name' => $loan['NameAddrDet'][0]['NameAddrLine'] ?? 'N/A',
-        'Address' => collect($loan['NameAddrDet'])->pluck('NameAddrLine')->filter()->implode(', '),
-        'City' => $loan['City'] ?? 'N/A',
-        'Zip' => $loan['Zip'] ?? 'N/A',
-        'Country' => $loan['CountryCd'] ?? 'N/A',
-        'Currency' => $loan['CurrencyCd'] ?? 'N/A',
-        'Original Loan Amount' => '₱' . number_format($loan['OriginalLoanAmt'] ?? 0, 2),
-        'Payoff Amount' => '₱' . number_format($loan['PayoffAmt'] ?? 0, 2),
-        'Principal Balance' => '₱' . number_format($loan['PrnBal'] ?? 0, 2),
-        'Interest Balance' => '₱' . number_format($loan['IntBal'] ?? 0, 2),
-        'Interest Rate' => number_format($loan['IntRate'] ?? 0, 2) . '%',
-        'Next Due Date' => \Carbon\Carbon::createFromFormat('Ymd', $loan['NextDueDt'])->format('M d, Y'),
-        'Maturity Date' => \Carbon\Carbon::createFromFormat('Ymd', $loan['MaturityDt'])->format('M d, Y'),
-        'Auto Debit' => $loan['AutoDebitInd'] ?? 'N/A',
-        'Product Code' => $loan['ProductCd'] ?? 'N/A',
-        'Status' => trim($data['WILRACTOperationResponse']['TSRsHdr']['ProcessMessage'] ?? 'N/A')
+            "TSRqHdr"    => $this->commonHeader(),
+            "Ctl1"       => $ctl1,
+            "Ctl2"       => $ctl2,
+            "Ctl3"       => $ctl3,
+            "Ctl4"       => $ctl4,
+            "AcctId"     => $acctId,
+            "EffectiveDt"=> "",
+        ],
     ];
 
+    $error       = null;
+    $details     = [];
+    $delinquency = [];
+
+    try {
+        // GET → POST fallback preserved
+        $response = $this->callUpstream($this->loanUrl, $payload, /* preferGetFirst */ true);
+
+        if (!$response->successful()) {
+            $error = "Request failed (HTTP {$response->status()}). Please try again.";
+        } else {
+            $data = $response->json();
+            [$tsHdr, $rows] = $this->parseOperationResponse($data, 'WILRACTOperationResponse', 'WILRACTRs');
+
+            // Upstream business error banner
+            $error = $this->upstreamErrorMessage($tsHdr, !empty($rows));
+
+            if (!$error) {
+                // Success: build details without any date formatting fields
+                $loan = $rows[0] ?? [];
+
+                $nameAddrLines = collect($loan['NameAddrDet'] ?? [])
+                    ->pluck('NameAddrLine')->filter();
+
+                $details = [
+                    'Account ID'           => (string)($loan['AcctId'] ?? 'N/A'),
+                    'Customer Name'        => $nameAddrLines->first() ?? 'N/A',
+                    'Address'              => $nameAddrLines->implode(', '),
+                    'City'                 => $loan['City'] ?? 'N/A',
+                    'Zip'                  => $loan['Zip'] ?? 'N/A',
+                    'Country'              => $loan['CountryCd'] ?? 'N/A',
+                    'Currency'             => $loan['CurrencyCd'] ?? 'N/A',
+                    'Original Loan Amount' => '₱' . number_format((float)($loan['OriginalLoanAmt'] ?? 0), 2),
+                    'Payoff Amount'        => '₱' . number_format((float)($loan['PayoffAmt'] ?? 0), 2),
+                    'Principal Balance'    => '₱' . number_format((float)($loan['PrnBal'] ?? 0), 2),
+                    'Interest Balance'     => '₱' . number_format((float)($loan['IntBal'] ?? 0), 2),
+                    'Interest Rate'        => number_format((float)($loan['IntRate'] ?? 0), 2) . '%',
+                    'Auto Debit'           => $loan['AutoDebitInd'] ?? 'N/A',
+                    'Product Code'         => $loan['ProductCd'] ?? 'N/A',
+                    'Status'               => trim((string)($tsHdr['ProcessMessage'] ?? 'COMPLETE')),
+                ];
+
+                $delinquency = $loan['Delinquency'] ?? [];
+            }
+        }
+    } catch (\Throwable $e) {
+        \Illuminate\Support\Facades\Log::error('LoanInquiry exception', ['message' => $e->getMessage()]);
+        $error = 'Unexpected error.';
+    }
+
     return view('loan-details', [
-        'details' => $details,
-        'delinquency' => $loan['Delinquency'] ?? []
+        'error'       => $error,
+        'details'     => $details,
+        'delinquency' => $delinquency,
     ]);
 }
 
-        // Stop Hold Inquiry
-        
+
 public function stopHoldInquiry(Request $request)
 {
+    // 1) Validate controls + account ID
     $validated = $request->validate([
         'Ctl2'   => ['nullable', 'string', 'max:10'],
         'Ctl3'   => ['nullable', 'string', 'max:10'],
@@ -101,102 +211,147 @@ public function stopHoldInquiry(Request $request)
         'AcctId' => ['required', 'string', 'max:32'],
     ]);
 
-    $base = [
-        "TSRqHdr" => $this->commonHeader(),
-        "Ctl1"    => "0008",
-        "Ctl2"    => $validated['Ctl2'] ?? "",
-        "Ctl3"    => $validated['Ctl3'] ?? "",
-        "Ctl4"    => $validated['Ctl4'] ?? "",
-        "AcctId"  => $validated['AcctId'],
-        "RecsRequested" => "0001",
-        // ... other fields left blank per spec
+    // 2) Hard-coded TSRqHdr (exactly as your spec)
+    $tsRqHdr = [
+        "MessageFormat"    => "",
+        "EmployeeId"       => "WI000001",
+        "LanguageCd"       => "EN",
+        "ApplCode"         => "TS",
+        "FuncSecCode"      => "I",
+        "SourceCode"       => "",
+        "EffectiveDate"    => now(),   // ← hard-coded
+        "TransTime"        => now(),   // ← hard-coded
+        "SuperOverride"    => "",
+        "TellerOverride"   => "",
+        "PhysicalLocation" => "",
+        "Rebid"            => "N",
+        "Reentry"          => "N",
+        "Correction"       => "N",
+        "Training"         => "N",
     ];
 
+    // 3) Controls: hard-coded defaults if no input
+    $ctl1   = "0008";
+    $ctl2   = trim((string)($validated['Ctl2'] ?? "0001"));
+    $ctl3   = trim((string)($validated['Ctl3'] ?? "0000"));
+    $ctl4   = trim((string)($validated['Ctl4'] ?? "1888"));
+    $acctId = trim((string)$validated['AcctId']);
+
+    // 4) Operation base: match your spec; blank strings where no input option exists
+    $base = [
+        "TSRqHdr"             => $tsRqHdr,
+        "Ctl1"                => $ctl1,
+        "Ctl2"                => $ctl2,
+        "Ctl3"                => $ctl3,
+        "Ctl4"                => $ctl4,
+        "AcctId"              => $acctId,
+        "RecsRequested"       => "0005",
+        "StopInd"             => "",
+        "HoldInd"             => "",
+        "HoldAllInd"          => "",
+        "SpecialInstructionsInd" => "",
+        "SuspectInd"          => "",
+        "StopRangeInd"        => "",
+        "SuspectRangeInd"     => "",
+        "StartCheckNum"       => "",
+        "EndCheckNum"         => "",
+        "StartDt"             => "",
+        "EndDt"               => "",
+        "LowAmt"              => "",
+        "HighAmt"             => "",
+        "LowSeq"              => "",
+        "HighSeq"             => "",
+        "TranCd"              => "",
+        "StopHoldAmt"         => "",
+        "ExpirationDt"        => "",
+        "ExpirationDays"      => "",
+        "IssueDt"             => "",
+        "InitiatedBy"         => "",
+        "StopHoldType"        => "",
+        "StopHoldDesc"        => "",
+        "AllFundsInd"         => "",
+        "ForceBalNegative"    => "",
+        "WaiveFeeInd"         => "",
+        "UniversalDesc"       => "",
+        "StopHoldSeq"         => "",
+    ];
+
+    $payload     = ["WIIRSTHOperation" => $base];
+    $errorBanner = null;
+    $details     = [];
+    $items       = [];
+
     try {
-        // Prefer POST with JSON; change to GET+query if upstream requires it.
-        $payload = ["WIIRSTHOperation" => $base];
+        // 5) Upstream call: GET first (per spec), then POST fallback
+        $response = $this->callUpstream($this->stopHoldUrl, $payload, /* preferGetFirst */ true);
 
-        $response = \Illuminate\Support\Facades\Http::timeout(10)
-            ->retry(2, 200)
-            ->withHeaders(['Content-Type' => 'application/json'])
-            ->post($this->stopHoldUrl, $payload);
-
+        // Transport error (HTTP not 2xx) → back with error
         if (!$response->successful()) {
             return back()->withErrors([
                 'api' => "StopHold inquiry failed (HTTP {$response->status()})."
             ])->withInput();
         }
 
-        $data  = $response->json();
-        $opRes = $data['WIIRSTHOperationResponse'] ?? [];
-        $tsHdr = $opRes['TSRsHdr'] ?? [];
-        $rs0   = ($opRes['WIIRSTHRs'] ?? [])[0] ?? [];
+        // 6) Parse envelope: TSRsHdr + WIIRSTHRs
+        $data = $response->json();
+        [$tsHdr, $rows] = $this->parseOperationResponse($data, 'WIIRSTHOperationResponse', 'WIIRSTHRs');
 
-        // Helper to format Ymd or special values (0, 999999) safely
-        $fmtYmd = function ($val) {
-            if (empty($val) || !is_numeric($val)) return 'N/A';
-            if ((int)$val === 0) return 'N/A';
-            if ((int)$val === 999999) return 'No Expiry';
-            $str = str_pad((string)$val, 8, '0', STR_PAD_LEFT);
-            try {
-                return \Carbon\Carbon::createFromFormat('Ymd', $str)->format('M d, Y');
-            } catch (\Throwable $e) {
-                return 'N/A';
-            }
-        };
+        // 7) Upstream business error banner (severity 'E' or empty rows)
+        $errorBanner = $this->upstreamErrorMessage($tsHdr, !empty($rows));
 
-        // Summary details for the header table
+        // 8) Header details (use first results row for summary)
+        $rs0 = $rows[0] ?? [];
         $details = [
-            'Account ID'   => $rs0['AcctId']        ?? 'N/A',
-            'Ctl1'         => $rs0['Ctl1']          ?? 'N/A',
-            'Ctl2'         => $rs0['Ctl2']          ?? 'N/A',
-            'Ctl3'         => $rs0['Ctl3']          ?? 'N/A',
-            'Ctl4'         => $rs0['Ctl4']          ?? 'N/A',
+            'Account ID'       => $rs0['AcctId'] ?? 'N/A',
+            'Ctl1'             => $rs0['Ctl1'] ?? 'N/A',
+            'Ctl2'             => $rs0['Ctl2'] ?? 'N/A',
+            'Ctl3'             => $rs0['Ctl3'] ?? 'N/A',
+            'Ctl4'             => $rs0['Ctl4'] ?? 'N/A',
             'Records Returned' => $rs0['RecsReturned'] ?? '0',
-            'More Indicator'   => $rs0['MoreInd']      ?? 'N/A',
-            'Status'       => trim($tsHdr['ProcessMessage'] ?? 'N/A'),
+            'More Indicator'   => $rs0['MoreInd'] ?? 'N/A',
+            'Status'           => trim((string)($tsHdr['ProcessMessage'] ?? 'N/A')),
         ];
 
-        // Row items for StopHoldList
+        // 9) Stop/Hold List rows (keys align with your Blade)
         $list = $rs0['StopHoldList'] ?? [];
-        $items = [];
         foreach ($list as $row) {
             $items[] = [
-                'Seq'               => $row['StopHoldSeq']         ?? '—',
-                'Type'              => $row['Type']                 ?? '—',
-                'SubType'           => $row['SubType']              ?? '—',
-                'Currency'          => $row['CurrencyCd']           ?? '—',
-                'Amount'            => is_numeric($row['StopHoldAmt'] ?? null)
-                                       ? '₱' . number_format((float)$row['StopHoldAmt'], 2)
-                                       : '—',
-                'Entry Date'        => $fmtYmd($row['EntryDt']      ?? null),
-                'Issue Date'        => $fmtYmd($row['IssueDt']      ?? null),
-                'Expiration Date'   => $fmtYmd($row['ExpirationDt'] ?? null),
-                'Exp Days'          => $row['ExpirationDays']       ?? '—',
-                'Exp Remaining'     => $row['ExpirationRemainingDays'] ?? '—',
-                'Start Check #'     => $row['StartCheckNum']        ?? '—',
-                'End Check #'       => $row['EndCheckNum']          ?? '—',
-                'Waive Fee'         => $row['WaiveFeeInd']          ?? '—',
-                'Initiated By'      => $row['InitiatedBy']          ?? '—',
-                'Branch'            => $row['Branch']               ?? '—',
-                'Description'       => $row['StopHoldDesc']         ?? '—',
+                'Seq'             => $row['StopHoldSeq'] ?? '—',
+                'Type'            => $row['Type'] ?? '—',
+                'SubType'         => $row['SubType'] ?? '—',
+                'Currency'        => $row['CurrencyCd'] ?? '—',
+                'Amount'          => is_numeric($row['StopHoldAmt'] ?? null)
+                                        ? '₱' . number_format((float)$row['StopHoldAmt'], 2)
+                                        : '—',
+                // Keep upstream integer dates as-is (no formatting)
+                'Entry Date'      => $row['EntryDt'] ?? '—',
+                'Issue Date'      => $row['IssueDt'] ?? '—',
+                'Expiration Date' => $row['ExpirationDt'] ?? '—',
+                'Exp Days'        => $row['ExpirationDays'] ?? '—',
+                'Exp Remaining'   => $row['ExpirationRemainingDays'] ?? '—',
+                'Start Check #'   => $row['StartCheckNum'] ?? '—',
+                'End Check #'     => $row['EndCheckNum'] ?? '—',
+                'Waive Fee'       => $row['WaiveFeeInd'] ?? '—',
+                'Initiated By'    => $row['InitiatedBy'] ?? '—',
+                'Branch'          => $row['Branch'] ?? '—',
+                'Description'     => $row['StopHoldDesc'] ?? '—',
             ];
         }
 
-        // Render like loan inquiry
+        // 10) Render Blade with standardized variables (your current Blade matches this)
         return view('stop-hold-inq', [
+            'error'   => $errorBanner,
             'details' => $details,
             'items'   => $items,
         ]);
+
     } catch (\Throwable $e) {
-        \Illuminate\Support\Facades\Log::error('StopHold exception', ['message' => $e->getMessage()]);
+        \Log::error('StopHold exception', ['message' => $e->getMessage()]);
         return back()->withErrors([
             'api' => 'Unexpected error while performing StopHold inquiry.'
         ])->withInput();
     }
 }
-
-
 
     
 public function holdAmountAdd(Request $request)
