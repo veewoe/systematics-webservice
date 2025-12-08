@@ -67,7 +67,7 @@
             </table>
         </div>
 
-        <!-- Optional Raw Response for Debugging -->
+        <!-- Raw Response for Debugging -->
         @if(!empty($raw))
             <details class="mt-3">
                 <summary class="text-muted">Raw Response (Debug)</summary>

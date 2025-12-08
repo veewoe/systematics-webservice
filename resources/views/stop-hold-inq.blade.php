@@ -1,17 +1,14 @@
-
-<!-- stop-hold-inq.blade.php -->
 <div class="card shadow-sm">
     <div class="card-header bg-primary text-white">
         <h4>Stop/Hold Details</h4>
     </div>
 
     <div class="card-body">
-        {{-- TSRsHdr quick status (Process Message, Severity, NextDay) --}}
         @isset($tsHdr)
             <div class="mb-3">
                 <div class="d-flex flex-wrap gap-3 align-items-center">
                     <span class="badge bg-info text-dark">
-                        Status: {{ $tsHdr['ProcessMessage'] ?? '—' }}
+                        Transaction Status: {{ $tsHdr['ProcessMessage'] ?? '—' }}
                     </span>
                     @if(!empty($tsHdr['Severity']))
                         <span class="badge bg-secondary">
@@ -43,8 +40,7 @@
             </table>
         </div>
 
-        <h5 class="mt-2">Stop/Hold List</h5>
-
+        {{-- Stop/Hold List --}}
         <div class="table-responsive">
             <table class="table table-striped">
                 <thead class="table-light">
@@ -65,6 +61,8 @@
                         <th>Initiated By</th>
                         <th>Branch</th>
                         <th>Description</th>
+                        <th>Status</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -86,17 +84,35 @@
                             <td>{{ $row['Initiated By'] }}</td>
                             <td>{{ $row['Branch'] }}</td>
                             <td>{{ $row['Description'] }}</td>
+                            <td>{{ $row['Status'] ?? '—' }}</td>
+
+                            {{-- Delete action --}}
+                            
+<td>
+    <form action="{{ route('stopHold.delete') }}" method="POST" class="d-inline"
+          onsubmit="return confirm('Delete stop/hold seq {{ $row['Seq'] }}? This cannot be undone.');">
+        @csrf
+        {{-- No @method('DELETE') when route is POST --}}
+
+        <input type="hidden" name="acctNo" value="{{ $details['Account ID'] ?? '' }}">
+        <input type="hidden" name="sequenceNo" value="{{ $row['Seq'] }}">
+
+        <button type="submit" class="btn btn-sm btn-outline-danger">
+            Delete
+        </button>
+    </form>
+                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="16" class="text-center text-muted">No stop/hold records found.</td>
+                            <td colspan="18" class="text-center text-muted">No stop/hold records found.</td>
                         </tr>
                     @endforelse
                 </tbody>
             </table>
         </div>
 
-        {{-- Optional: Transaction Status Messages (bottom card) --}}
+        {{-- Transaction Status Messages --}}
         @isset($tsMsgs)
             <h5 class="mt-4">Transaction Status Messages</h5>
             <div class="table-responsive">
@@ -113,11 +129,11 @@
                     <tbody>
                         @forelse($tsMsgs as $m)
                             <tr>
-                                <td>{{ $m['Code'] }}</td>
-                                <td>{{ $m['Severity'] }}</td>
-                                <td>{{ $m['Text'] }}</td>
-                                <td>{{ $m['Account'] }}</td>
-                                <td>{{ $m['Program'] }}</td>
+                                <td>{{ $m['MsgCode'] ?? $m['Code'] ?? '—' }}</td>
+                                <td>{{ $m['MsgSeverity'] ?? $m['Severity'] ?? '—' }}</td>
+                                <td>{{ $m['MsgText'] ?? $m['Text'] ?? '—' }}</td>
+                                <td>{{ $m['MsgAcct'] ?? $m['Account'] ?? '—' }}</td>
+                                <td>{{ $m['MsgPgm'] ?? $m['Program'] ?? '—' }}</td>
                             </tr>
                         @empty
                             <tr>
@@ -130,3 +146,12 @@
         @endisset
     </div>
 </div>
+
+{{-- Raw Response for Debugging --}}
+@if(!empty($raw))
+    <details class="mt-3">
+        role="alert">
+        {{ $message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+@enderror

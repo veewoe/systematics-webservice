@@ -54,7 +54,7 @@
                 Hold Amount Add
             </button>
         </li>
-        <li class="nav-item" role="presentation">
+        <!-- <li class="nav-item" role="presentation">
             <button class="nav-link" id="holddelete-tab" data-bs-toggle="tab" data-bs-target="#holddelete" type="button" role="tab">
                 Hold Delete
             </button>
@@ -63,7 +63,7 @@
             <button class="nav-link" id="stopall-tab" data-bs-toggle="tab" data-bs-target="#stopall" type="button" role="tab">
                 Hold All Add
             </button>
-        </li>
+        </li> -->
     </ul>
 
     <!-- Tab Content -->

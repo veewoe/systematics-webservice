@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class HoldAmountAddController extends Controller
 {
@@ -12,9 +14,32 @@ class HoldAmountAddController extends Controller
             return view('main');
         }
 
+        //header
+        private function commonHeader() {
+            return [
+                "MessageFormat" => "",
+                "EmployeeId" => "WI000001",
+                "LanguageCd" => "EN",
+                "ApplCode" => "TS",
+                "FuncSecCode" => "I",
+                "SourceCode" => "",
+                "EffectiveDate" => now()->format('Ymd'),
+                "TransDate" => now()->format('Ymd'),
+                "TransTime" => now()->format('His') . '01',
+                "TransSeq" => Str::random(8),
+                "SuperOverride" => "",
+                "TellerOverride" => "",
+                "ReportLevels" => "",
+                "PhysicalLocation" => "",
+                "Rebid" => "N",
+                "Reentry" => "N",
+                "Correction" => "N",
+                "Training" => "N"
+            ];
+        }
+
     public function holdAmountAdd(Request $request)
 {
-    // Basic validation (adjust rules to your needs)
     $validated = $request->validate([
         'Ctl2'          => ['nullable', 'string', 'max:10'],
         'Ctl3'          => ['nullable', 'string', 'max:10'],
@@ -28,7 +53,6 @@ class HoldAmountAddController extends Controller
         'Branch'        => ['nullable', 'string', 'max:32'],
     ]);
 
-    // Format amount to 17-char padded minor units (e.g., cents)
     $rawAmt = $validated['StopHoldAmt'];
     $minorUnits = (int) round(((float) $rawAmt) * 100);
     $paddedAmt = str_pad((string) $minorUnits, 17, '0', STR_PAD_LEFT);
@@ -71,14 +95,12 @@ class HoldAmountAddController extends Controller
         $opRes = $data['WIIRSTHOperationResponse'] ?? [];
         $tsHdr = $opRes['TSRsHdr'] ?? [];
 
-        // Summary details like your other views
         $details = [
             'Severity'       => $tsHdr['MaxSeverity']    ?? 'N/A',
             'Process Message'=> trim($tsHdr['ProcessMessage'] ?? 'N/A'),
             'Next Day'       => $tsHdr['NextDay']        ?? 'N/A',
         ];
 
-        // Messages table: TrnStatus entries
         $messages = [];
         foreach (($tsHdr['TrnStatus'] ?? []) as $msg) {
             $messages[] = [
@@ -98,7 +120,7 @@ class HoldAmountAddController extends Controller
         return view('hold-amount-add', [
             'details'  => $details,
             'messages' => $messages,
-            // 'raw'      => $data,
+            'raw'      => $data,
         ]);
     } catch (\Throwable $e) {
         Log::error('Hold Amount Add exception', ['message' => $e->getMessage()]);

@@ -9,7 +9,6 @@ use Illuminate\Http\Request;
 class LoanInquiryController extends Controller
 {
     private $loanUrl = 'http://172.22.242.21:18000/REST/WILRACT/';
-        private $stopHoldUrl = 'http://172.22.242.21:18000/REST/WIIRSTH/';
 
         public function index() {
             return view('main');
@@ -41,7 +40,6 @@ class LoanInquiryController extends Controller
         }
 
         // ALS Loan Inquiry
-        
         public function loansInquiry(Request $request)
         {
             $payload = [

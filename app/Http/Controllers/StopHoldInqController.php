@@ -3,14 +3,65 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class StopHoldInqController extends Controller
 {      
-private $stopHoldUrl = 'http://172.22.242.21:18000/REST/WIIRSTH/';
-
+        private $stopHoldUrl = 'http://172.22.242.21:18000/REST/WIIRSTH/';
+    
         public function index() {
             return view('main');
         }
+
+        private function callUpstream(string $url, array $payload, bool $preferGetFirst = true, int $timeout = 10)
+{
+    if ($preferGetFirst) {
+        // Try GET (with JSON body) first
+        $response = \Illuminate\Support\Facades\Http::timeout($timeout)
+            ->retry(2, 200)
+            ->withHeaders(['Content-Type' => 'application/json'])
+            ->withBody(json_encode($payload), 'application/json')
+            ->get($url);
+ 
+        if ($response->successful()) {
+            return $response;
+        }
+ 
+        // Fallback: POST
+        return \Illuminate\Support\Facades\Http::timeout($timeout)
+            ->retry(2, 200)
+            ->withHeaders(['Content-Type' => 'application/json'])
+            ->post($url, $payload);
+    }
+ 
+    // POST-only path
+    return \Illuminate\Support\Facades\Http::timeout($timeout)
+        ->retry(2, 200)
+        ->asJson()
+        ->post($url, $payload);
+}
+
+private function upstreamErrorMessage(?array $tsHdr, bool $rowsPresent): ?string
+{
+    $tsHdr    = $tsHdr ?? [];
+    $severity = strtoupper(trim((string)($tsHdr['MaxSeverity'] ?? '')));
+    if ($severity === 'E' || !$rowsPresent) {
+        $status  = ($tsHdr['TrnStatus'] ?? [])[0] ?? [];
+        $msgCode = trim((string)($status['MsgCode'] ?? 'UNKNOWN'));
+        $msgText = trim((string)($status['MsgText'] ?? 'Upstream error'));
+        return "{$msgCode}: {$msgText}";
+    }
+    return null;
+}
+
+private function parseOperationResponse(array $data, string $opResponseKey, string $rowsKey): array
+{
+    $opRes = $data[$opResponseKey] ?? [];
+    $tsHdr = $opRes['TSRsHdr'] ?? [];
+    $rows  = $opRes[$rowsKey] ?? [];
+    return [$tsHdr, $rows];
+}
+        
 public function stopHoldInquiry(Request $request)
 {
     $validated = $request->validate([
@@ -19,99 +70,219 @@ public function stopHoldInquiry(Request $request)
         'Ctl4'   => ['nullable', 'string', 'max:10'],
         'AcctId' => ['required', 'string', 'max:32'],
     ]);
+ 
+    // 2) Hard-coded TSRqHdr (exactly as your spec)
+    $tsRqHdr = [
+        "MessageFormat"    => "",
+        "EmployeeId"       => "WI000001",
+        "LanguageCd"       => "EN",
+        "ApplCode"         => "TS",
+        "FuncSecCode"      => "I",
+        "SourceCode"       => "",
+        "EffectiveDate"    => now(),
+        "TransTime"        => now(),   
+        "SuperOverride"    => "",
+        "TellerOverride"   => "",
+        "PhysicalLocation" => "",
+        "Rebid"            => "N",
+        "Reentry"          => "N",
+        "Correction"       => "N",
+        "Training"         => "N",
+    ];
+ 
+
+    $ctl1   = "0008";
+    $ctl2   = trim((string)($validated['Ctl2'] ?? "0001"));
+    $ctl3   = trim((string)($validated['Ctl3'] ?? "0000"));
+    $ctl4   = trim((string)($validated['Ctl4'] ?? "1888"));
+    $acctId = trim((string)$validated['AcctId']);
+ 
 
     $base = [
-        "TSRqHdr" => $this->commonHeader(),
-        "Ctl1"    => "0008",
-        "Ctl2"    => $validated['Ctl2'] ?? "",
-        "Ctl3"    => $validated['Ctl3'] ?? "",
-        "Ctl4"    => $validated['Ctl4'] ?? "",
-        "AcctId"  => $validated['AcctId'],
-        "RecsRequested" => "0001",
-        // ... other fields left blank per spec
+        "TSRqHdr"             => $tsRqHdr,
+        "Ctl1"                => $ctl1,
+        "Ctl2"                => $ctl2,
+        "Ctl3"                => $ctl3,
+        "Ctl4"                => $ctl4,
+        "AcctId"              => $acctId,
+        "RecsRequested"       => "0005",
+        "StopInd"             => "",
+        "HoldInd"             => "",
+        "HoldAllInd"          => "",
+        "SpecialInstructionsInd" => "",
+        "SuspectInd"          => "",
+        "StopRangeInd"        => "",
+        "SuspectRangeInd"     => "",
+        "StartCheckNum"       => "",
+        "EndCheckNum"         => "",
+        "StartDt"             => "",
+        "EndDt"               => "",
+        "LowAmt"              => "",
+        "HighAmt"             => "",
+        "LowSeq"              => "",
+        "HighSeq"             => "",
+        "TranCd"              => "",
+        "StopHoldAmt"         => "",
+        "ExpirationDt"        => "",
+        "ExpirationDays"      => "",
+        "IssueDt"             => "",
+        "InitiatedBy"         => "",
+        "StopHoldType"        => "",
+        "StopHoldDesc"        => "",
+        "AllFundsInd"         => "",
+        "ForceBalNegative"    => "",
+        "WaiveFeeInd"         => "",
+        "UniversalDesc"       => "",
+        "StopHoldSeq"         => "",
     ];
-
+ 
+    $payload     = ["WIIRSTHOperation" => $base];
+    $errorBanner = null;
+    $details     = [];
+    $items       = [];
+ 
     try {
-        // Prefer POST with JSON; change to GET+query if upstream requires it.
-        $payload = ["WIIRSTHOperation" => $base];
-
-        $response = \Illuminate\Support\Facades\Http::timeout(10)
-            ->retry(2, 200)
-            ->withHeaders(['Content-Type' => 'application/json'])
-            ->post($this->stopHoldUrl, $payload);
-
+   
+        $response = $this->callUpstream($this->stopHoldUrl, $payload,true);
+ 
         if (!$response->successful()) {
             return back()->withErrors([
                 'api' => "StopHold inquiry failed (HTTP {$response->status()})."
             ])->withInput();
         }
-
-        $data  = $response->json();
-        $opRes = $data['WIIRSTHOperationResponse'] ?? [];
-        $tsHdr = $opRes['TSRsHdr'] ?? [];
-        $rs0   = ($opRes['WIIRSTHRs'] ?? [])[0] ?? [];
-
-        // Helper to format Ymd or special values (0, 999999) safely
-        $fmtYmd = function ($val) {
-            if (empty($val) || !is_numeric($val)) return 'N/A';
-            if ((int)$val === 0) return 'N/A';
-            if ((int)$val === 999999) return 'No Expiry';
-            $str = str_pad((string)$val, 8, '0', STR_PAD_LEFT);
-            try {
-                return \Carbon\Carbon::createFromFormat('Ymd', $str)->format('M d, Y');
-            } catch (\Throwable $e) {
-                return 'N/A';
-            }
-        };
-
-        // Summary details for the header table
+ 
+        $data = $response->json();
+        [$tsHdr, $rows] = $this->parseOperationResponse($data, 'WIIRSTHOperationResponse', 'WIIRSTHRs');
+ 
+        $errorBanner = $this->upstreamErrorMessage($tsHdr, !empty($rows));
+ 
+        $rs0 = $rows[0] ?? [];
         $details = [
-            'Account ID'   => $rs0['AcctId']        ?? 'N/A',
-            'Ctl1'         => $rs0['Ctl1']          ?? 'N/A',
-            'Ctl2'         => $rs0['Ctl2']          ?? 'N/A',
-            'Ctl3'         => $rs0['Ctl3']          ?? 'N/A',
-            'Ctl4'         => $rs0['Ctl4']          ?? 'N/A',
+            'Account ID'       => $rs0['AcctId'] ?? 'N/A',
+            'Ctl1'             => $rs0['Ctl1'] ?? 'N/A',
+            'Ctl2'             => $rs0['Ctl2'] ?? 'N/A',
+            'Ctl3'             => $rs0['Ctl3'] ?? 'N/A',
+            'Ctl4'             => $rs0['Ctl4'] ?? 'N/A',
             'Records Returned' => $rs0['RecsReturned'] ?? '0',
-            'More Indicator'   => $rs0['MoreInd']      ?? 'N/A',
-            'Status'       => trim($tsHdr['ProcessMessage'] ?? 'N/A'),
+            'More Indicator'   => $rs0['MoreInd'] ?? 'N/A',
+            'Transaction Status'           => trim((string)($tsHdr['ProcessMessage'] ?? 'N/A')),
         ];
-
-        // Row items for StopHoldList
+ 
         $list = $rs0['StopHoldList'] ?? [];
-        $items = [];
         foreach ($list as $row) {
             $items[] = [
-                'Seq'               => $row['StopHoldSeq']         ?? '—',
-                'Type'              => $row['Type']                 ?? '—',
-                'SubType'           => $row['SubType']              ?? '—',
-                'Currency'          => $row['CurrencyCd']           ?? '—',
-                'Amount'            => is_numeric($row['StopHoldAmt'] ?? null)
-                                       ? '₱' . number_format((float)$row['StopHoldAmt'], 2)
-                                       : '—',
-                'Entry Date'        => $fmtYmd($row['EntryDt']      ?? null),
-                'Issue Date'        => $fmtYmd($row['IssueDt']      ?? null),
-                'Expiration Date'   => $fmtYmd($row['ExpirationDt'] ?? null),
-                'Exp Days'          => $row['ExpirationDays']       ?? '—',
-                'Exp Remaining'     => $row['ExpirationRemainingDays'] ?? '—',
-                'Start Check #'     => $row['StartCheckNum']        ?? '—',
-                'End Check #'       => $row['EndCheckNum']          ?? '—',
-                'Waive Fee'         => $row['WaiveFeeInd']          ?? '—',
-                'Initiated By'      => $row['InitiatedBy']          ?? '—',
-                'Branch'            => $row['Branch']               ?? '—',
-                'Description'       => $row['StopHoldDesc']         ?? '—',
+                'Seq'             => $row['StopHoldSeq'] ?? '—',
+                'Type'            => $row['Type'] ?? '—',
+                'SubType'         => $row['SubType'] ?? '—',
+                'Currency'        => $row['CurrencyCd'] ?? '—',
+                'Amount'          => is_numeric($row['StopHoldAmt'] ?? null)
+                                        ? '₱' . number_format((float)$row['StopHoldAmt'], 2)
+                                        : '—',
+                'Entry Date'      => $row['EntryDt'] ?? '—',
+                'Issue Date'      => $row['IssueDt'] ?? '—',
+                'Expiration Date' => $row['ExpirationDt'] ?? '—',
+                'Exp Days'        => $row['ExpirationDays'] ?? '—',
+                'Exp Remaining'   => $row['ExpirationRemainingDays'] ?? '—',
+                'Start Check #'   => $row['StartCheckNum'] ?? '—',
+                'End Check #'     => $row['EndCheckNum'] ?? '—',
+                'Waive Fee'       => $row['WaiveFeeInd'] ?? '—',
+                'Initiated By'    => $row['InitiatedBy'] ?? '—',
+                'Branch'          => $row['Branch'] ?? '—',
+                'Description'     => $row['StopHoldDesc'] ?? '—',
             ];
         }
-
-        // Render like loan inquiry
+ 
         return view('stop-hold-inq', [
+            'error'   => $errorBanner,
             'details' => $details,
             'items'   => $items,
         ]);
+ 
     } catch (\Throwable $e) {
-        \Illuminate\Support\Facades\Log::error('StopHold exception', ['message' => $e->getMessage()]);
+        Log::error('StopHold exception', ['message' => $e->getMessage()]);
         return back()->withErrors([
             'api' => 'Unexpected error while performing StopHold inquiry.'
         ])->withInput();
+    }
+}
+
+public function deleteStopHold(Request $request)
+{
+    $validated = $request->validate([
+        'AcctId'      => ['required', 'string', 'max:32'],
+        'StopHoldSeq' => ['required', 'string', 'max:20'],
+        'Ctl1'        => ['nullable', 'string', 'max:10'],
+        'Ctl2'        => ['nullable', 'string', 'max:10'],
+        'Ctl3'        => ['nullable', 'string', 'max:10'],
+        'Ctl4'        => ['nullable', 'string', 'max:10'],
+    ]);
+
+    $tsRqHdr = [
+        "MessageFormat"    => "",
+        "EmployeeId"       => "WI000001",
+        "LanguageCd"       => "EN",
+        "ApplCode"         => "TS",
+        "FuncSecCode"      => "I",
+        "SourceCode"       => "",
+        "EffectiveDate"    => now()->toIso8601String(),
+        "TransTime"        => now()->toIso8601String(),
+        "SuperOverride"    => "",
+        "TellerOverride"   => "",
+        "PhysicalLocation" => "",
+        "Rebid"            => "N",
+        "Reentry"          => "N",
+        "Correction"       => "N",
+        "Training"         => "N",
+    ];
+
+    $ctl1 = trim((string)($validated['Ctl1'] ?? "0008"));
+    $ctl2 = trim((string)($validated['Ctl2'] ?? "0001"));
+    $ctl3 = trim((string)($validated['Ctl3'] ?? "0000"));
+    $ctl4 = trim((string)($validated['Ctl4'] ?? "1888"));
+
+    $base = [
+        "TSRqHdr"     => $tsRqHdr,
+        "Ctl1"        => $ctl1,
+        "Ctl2"        => $ctl2,
+        "Ctl3"        => $ctl3,
+        "Ctl4"        => $ctl4,
+        "AcctId"      => $validated['AcctId'],
+        "StopHoldSeq" => $validated['StopHoldSeq'],
+
+        // Uncomment the one your upstream spec needs:
+        // "TranCd"      => "D",
+        // "DeleteInd"   => "Y",
+    ];
+
+    $payload = ["WIIRSTHOperation" => $base];
+
+    try {
+        $response = $this->callUpstream($this->stopHoldUrl, $payload, false);
+
+        if (!$response->successful()) {
+            return back()->withErrors([
+                'api' => "Delete failed (HTTP {$response->status()})."
+            ]);
+        }
+
+        $data = $response->json();
+        [$tsHdr, $rows] = $this->parseOperationResponse(
+            $data,
+            'WIIRSTHOperationResponse',
+            'WIIRSTHRs'
+        );
+
+        $outcome = $this->upstreamOutcome($tsHdr);
+        if ($outcome['kind'] === 'error') {
+            return back()->withErrors(['api' => "{$outcome['code']}: {$outcome['text']}"]);
+        }
+
+        $msg = $outcome['message'] ?: ($outcome['text'] ?: "Stop/Hold seq {$validated['StopHoldSeq']} deleted.");
+        return back()->with('status', $msg);
+
+    } catch (\Throwable $e) {
+        Log::error('StopHold delete exception', ['message' => $e->getMessage()]);
+        return back()->withErrors(['api' => 'Unexpected error while deleting Stop/Hold.']);
     }
 }
 }
