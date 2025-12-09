@@ -68,7 +68,7 @@ class ErrorController extends Controller
             $processMsg = trim((string)($tsHdr['ProcessMessage'] ?? ''));
             $display    = $processMsg ?: $msgText;
 
-            return "{$msgCode}: {$display}" . ($severity ? " (Severity {$severity})" : '');
+        return "Error Code: {$msgCode} - {$msgText}: Severity: {$tsHdr['MaxSeverity']}";
         }
 
         return null;
@@ -80,9 +80,6 @@ class ErrorController extends Controller
         return redirect()->back()->withErrors($message)->withInput();
     }
 
-    /**
-     * Return standardized JSON error (for API endpoints).
-     */
     public function jsonError(string $message, int $status = 400, array $context = []): JsonResponse
     {
         return response()->json([

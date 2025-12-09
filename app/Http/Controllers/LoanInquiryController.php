@@ -153,8 +153,7 @@ class LoanInquiryController extends Controller
             // 🔹 Map delinquency to "Days Past Due / Boundary / Cycles Past Due"
             $delinquency = collect($loan['Delinquency'] ?? [])
                 ->map(function ($row) {
-                    // $row is an associative array like:
-                    // [ 'DaysPastDueCounter' => 0, 'DaysPastDueBoundary' => 1, 'CyclesPastDueCounter' => 0 ]
+        
                     $r = is_array($row) ? $row : (array) $row;
 
                     return [
@@ -163,7 +162,7 @@ class LoanInquiryController extends Controller
                         'CyclesPastDue'=> $r['CyclesPastDueCounter'] ?? null,
                     ];
                 })
-                ->filter(fn ($r) => array_filter($r, fn ($v) => $v !== null)) // keep rows with at least one value
+                ->filter(fn ($r) => array_filter($r, fn ($v) => $v !== null))
                 ->values()
                 ->all();
 

@@ -1,9 +1,9 @@
 
-{{-- loan-details.blade.php --}}
+
 @if ($errors->any())
     <div class="alert alert-danger">{{ $errors->first() }}</div>
 @else
-    {{-- Example: print $details as two-column table --}}
+   
     <table class="table table-sm">
         <tbody>
         @foreach ($details as $label => $value)

@@ -1,3 +1,11 @@
+
+{{-- Display Laravel validation or session errors --}}
+{{--@if upstream error banner if passed --}}
+@if (!empty($error))
+    <div class="alert alert-danger">
+        {{ $error }}
+    </div>
+@endif
 <div class="card shadow-sm">
     <div class="card-header bg-primary text-white">
         <h4>Stop/Hold Details</h4>
@@ -155,3 +163,5 @@
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
 @enderror
+
+   
