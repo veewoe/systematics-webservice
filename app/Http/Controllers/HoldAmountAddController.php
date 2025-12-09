@@ -108,11 +108,7 @@ class HoldAmountAddController extends Controller
                 'Text'      => $msg['MsgText']     ?? '—',
                 'Account'   => $msg['MsgAcct']     ?? '—',
                 'Program'   => $msg['MsgPgm']      ?? '—',
-                // 'Dag'       => $msg['MsgDag']      ?? '—',
-                // 'Field'     => $msg['MsgField']    ?? '—',
-                // 'Dim1'      => $msg['MsgFieldDim1']?? '—',
-                // 'Dim2'      => $msg['MsgFieldDim2']?? '—',
-                // 'Dim3'      => $msg['MsgFieldDim3']?? '—',
+              
             ];
         }
 

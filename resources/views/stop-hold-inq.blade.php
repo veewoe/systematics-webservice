@@ -1,20 +1,8 @@
-
-{{-- Success flash after delete --}}
-@if(session('status'))
-    <div class="alert alert-success alert-dismissible fade show mt-3" role="alert">
-        {{ session('status') }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+@if (!empty($error))
+    <div class="alert alert-danger">
+        {{ $error }}
     </div>
-@endif
-
-{{-- Error from API/inquiry/delete --}}
-@error('api')
-    <div class="alert alert-danger alert-dismissible fade show mt-3" role="alert">
-        {{ $message }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    </div>
-@enderror
-
+@else
 
 <div class="card shadow-sm">
     <div class="card-header bg-primary text-white">
@@ -22,26 +10,7 @@
     </div>
 
     <div class="card-body">
-        @isset($tsHdr)
-            <div class="mb-3">
-                <div class="d-flex flex-wrap gap-3 align-items-center">
-                    <span class="badge bg-info text-dark">
-                        Transaction Status: {{ $tsHdr['ProcessMessage'] ?? '—' }}
-                    </span>
-                    @if(!empty($tsHdr['Severity']))
-                        <span class="badge bg-secondary">
-                            Severity: {{ $tsHdr['Severity'] }}
-                        </span>
-                    @endif
-                    @if(!empty($tsHdr['NextDay']))
-                        <span class="badge bg-light border">
-                            Next Day: {{ $tsHdr['NextDay'] }}
-                        </span>
-                    @endif
-                </div>
-            </div>
-        @endisset
-
+        
         {{-- Summary table --}}
         <div class="table-responsive">
             <table class="table table-bordered mb-4">
@@ -133,48 +102,6 @@
                 </tbody>
             </table>
         </div>
-        {{-- Transaction Status Messages --}}
-        @isset($tsMsgs)
-            <h5 class="mt-4">Transaction Status Messages</h5>
-            <div class="table-responsive">
-                <table class="table table-bordered">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Code</th>
-                            <th>Severity</th>
-                            <th>Text</th>
-                            <th>Account</th>
-                            <th>Program</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($tsMsgs as $m)
-                            <tr>
-                                <td>{{ $m['MsgCode'] ?? $m['Code'] ?? '—' }}</td>
-                                <td>{{ $m['MsgSeverity'] ?? $m['Severity'] ?? '—' }}</td>
-                                <td>{{ $m['MsgText'] ?? $m['Text'] ?? '—' }}</td>
-                                <td>{{ $m['MsgAcct'] ?? $m['Account'] ?? '—' }}</td>
-                                <td>{{ $m['MsgPgm'] ?? $m['Program'] ?? '—' }}</td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="5" class="text-center text-muted">No status messages.</td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-        @endisset
     </div>
 </div>
-
-{{-- Raw Response for Debugging --}}
-@if(!empty($raw))
-    <details class="mt-3">
-        role="alert">
-        {{ $message }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-@enderror
-
-   
+@endif

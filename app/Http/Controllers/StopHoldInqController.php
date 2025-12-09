@@ -207,37 +207,5 @@ public function stopHoldInquiry(Request $request)
     }
 }
 
-public function show(Request $request)
-{
-    $acctNo = $request->query('acctNo');
-    $cbr    = $request->query('cbr');
-    $cbi    = $request->query('cbi');
-    $cba    = $request->query('cba');
-
-    $payload = array_filter([
-        'acctNo' => $acctNo,
-        'cbr'    => $cbr,
-        'cbi'    => $cbi,
-        'cba'    => $cba,
-    ], fn ($v) => !is_null($v) && $v !== '');
-
-    $resp = Http::timeout(10)->retry(2, 200)->asForm()
-        ->post('http://172.22.242.21:18000/REST/WIIRSTH/?ActionCD=I', $payload);
-
-    if ($resp->failed()) {
-        $msg = 'Inquiry failed. ' . \Illuminate\Support\Str::limit(strip_tags($resp->body()), 250);
-
-        return view('stopHold.inquiry', [
-            'details' => [],
-            'items'   => [],
-            'tsHdr'   => [],
-            'tsMsgs'  => [],
-        ])->withErrors(['api' => $msg]);
-    }
-
-    $json = $resp->json();
-
-    return view('stopHold.inquiry', compact('details', 'items', 'tsHdr', 'tsMsgs'));
-}
 
 }
