@@ -1,36 +1,41 @@
-<!-- loan-details.blade.php -->
-<div class="card shadow-sm">
-    <div class="card-header bg-primary text-white">
-        <h4>Loan Details</h4>
-    </div>
-    <div class="card-body">
-        <table class="table table-bordered">
-            @foreach($details as $key => $value)
+
+
+@if ($errors->any())
+    <div class="alert alert-danger">{{ $errors->first() }}</div>
+@else
+   
+    <table class="table table-sm">
+        <tbody>
+        @foreach ($details as $label => $value)
+            <tr>
+                <th style="width: 30%">{{ $label }}</th>
+                <td>{{ $value }}</td>
+            </tr>
+        @endforeach
+        </tbody>
+    </table>
+
+   
+@if (!empty($delinquency))
+    <h2 class="h6 mt-4">Delinquency</h2>
+    <table class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                <th>Days Past Due</th>
+                <th>Boundary</th>
+                <th>Cycles Past Due</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach ($delinquency as $row)
                 <tr>
-                    <th>{{ $key }}</th>
-                    <td>{{ $value }}</td>
+                    <td>{{ $row['DaysPastDue'] ?? 'N/A' }}</td>
+                    <td>{{ $row['Boundary'] ?? 'N/A' }}</td>
+                    <td>{{ $row['CyclesPastDue'] ?? 'N/A' }}</td>
                 </tr>
             @endforeach
-        </table>
+        </tbody>
+    </table>
+@endif
 
-        <h5 class="mt-4">Delinquency Information</h5>
-        <table class="table table-striped">
-            <thead>
-                <tr>
-                    <th>Days Past Due</th>
-                    <th>Boundary</th>
-                    <th>Cycles Past Due</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach($delinquency as $d)
-                    <tr>
-                        <td>{{ $d['DaysPastDueCounter'] }}</td>
-                        <td>{{ $d['DaysPastDueBoundary'] }}</td>
-                        <td>{{ $d['CyclesPastDueCounter'] }}</td>
-                    </tr>
-                @endforeach
-            </tbody>
-        </table>
-    </div>
-</div>
+@endif

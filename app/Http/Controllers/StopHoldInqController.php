@@ -48,9 +48,10 @@ private function upstreamErrorMessage(?array $tsHdr, bool $rowsPresent): ?string
     $severity = strtoupper(trim((string)($tsHdr['MaxSeverity'] ?? '')));
     if ($severity === 'E' || !$rowsPresent) {
         $status  = ($tsHdr['TrnStatus'] ?? [])[0] ?? [];
+        $errormsg = $status['MsgText'];
         $msgCode = trim((string)($status['MsgCode'] ?? 'UNKNOWN'));
         $msgText = trim((string)($status['MsgText'] ?? 'Upstream error'));
-        return "{$msgCode}: {$msgText}";
+        return "Error Code:{$msgCode}: {$msgText}: Severity: {$tsHdr['MaxSeverity']}";
     }
     return null;
 }

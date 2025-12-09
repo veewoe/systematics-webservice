@@ -1,4 +1,3 @@
-
 <?php
 
 use Illuminate\Support\Facades\Route;
@@ -44,4 +43,3 @@ Route::post('/hold-amount-add', [HoldAmountAddController::class, 'holdAmountAdd'
 
 // Route::post('/stop-hold-all-add', [HoldAllAddController::class, 'holdAllAdd']);
 Route::post('/hold-all-add', [HoldAllAddController::class, 'holdAllAdd']);
-
