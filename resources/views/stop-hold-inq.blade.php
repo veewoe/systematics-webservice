@@ -1,3 +1,21 @@
+
+{{-- Success flash after delete --}}
+@if(session('status'))
+    <div class="alert alert-success alert-dismissible fade show mt-3" role="alert">
+        {{ session('status') }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+@endif
+
+{{-- Error from API/inquiry/delete --}}
+@error('api')
+    <div class="alert alert-danger alert-dismissible fade show mt-3" role="alert">
+        {{ $message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+@enderror
+
+
 <div class="card shadow-sm">
     <div class="card-header bg-primary text-white">
         <h4>Stop/Hold Details</h4>
@@ -87,20 +105,27 @@
                             <td>{{ $row['Status'] ?? '—' }}</td>
 
                             {{-- Delete action --}}
-                            
-<td>
-    <form action="{{ route('stopHold.delete') }}" method="POST" class="d-inline"
-          onsubmit="return confirm('Delete stop/hold seq {{ $row['Seq'] }}? This cannot be undone.');">
-        @csrf
-        {{-- No @method('DELETE') when route is POST --}}
+                            <td>   
 
-        <input type="hidden" name="acctNo" value="{{ $details['Account ID'] ?? '' }}">
-        <input type="hidden" name="sequenceNo" value="{{ $row['Seq'] }}">
+<form action="{{ route('stopHold.delete') }}" method="POST" class="d-inline"
+      data-seq="{{ $row['Seq'] }}"
+      onsubmit="return confirm('Delete stop/hold seq ' + this.dataset.seq + '? This cannot be undone.');">
+    @csrf
 
-        <button type="submit" class="btn btn-sm btn-outline-danger">
-            Delete
-        </button>
-    </form>
+    <input type="hidden" name="acctNo" value="{{ $details['Account ID'] ?? '' }}">
+    <input type="hidden" name="sequenceNo" value="{{ $row['Seq'] }}">
+
+    {{-- Optional: if your inquiry requires these to rebuild the same view --}}
+    <input type="hidden" name="cbr" value="{{ $details['CBR'] ?? '' }}">
+    <input type="hidden" name="cbi" value="{{ $details['CBI'] ?? '' }}">
+    <input type="hidden" name="cba" value="{{ $details['CBA'] ?? '' }}">
+    <input type="hidden" name="tab" value="stopHold"> 
+
+    <button type="submit" class="btn btn-sm btn-outline-danger">
+        Delete
+    </button>
+</form>
+
                             </td>
                         </tr>
                     @empty
