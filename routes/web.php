@@ -1,4 +1,3 @@
-
 <?php
 
 use Illuminate\Support\Facades\Route;
@@ -14,43 +13,33 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-
-
 use App\Http\Controllers\ApiController;
 use App\Http\Controllers\HoldAmountAddController;
 use App\Http\Controllers\LoanInquiryController;
 use App\Http\Controllers\StopHoldInqController;
 use App\Http\Controllers\StopHoldDeleteController;
-use App\Http\Controllers\ErrorController;
-
+use App\Http\Controllers\HoldAllAddController;
 
 Route::get('/', [ApiController::class, 'index']);
 
+// ALS Loan Inquiry
+Route::post('/loans-inq', [LoanInquiryController::class, 'loansInquiry']);
 
-Route::get('/', [LoanInquiryController::class, 'index'])->name('home');
-
-Route::post('/loans-inq', [LoanInquiryController::class, 'loansInquiry'])->name('loans.inq');
 // IM Stop Hold
-Route::post('/stop-hold-inq', [StopHoldInqController::class, 'stopHoldInquiry']);
 
-// Inquiry page (GET)
-Route::get('/stophold/inquiry', [StopHoldInqController::class, 'stopHoldInquiry'])
-    ->name('stophold.inquiry');
+Route::get('/stop-hold/inq', [StopHoldInqController::class, 'show'])
+    ->name('stopHold.inq');
 
-Route::delete('/hold/{seq}', [StopHoldInqController::class, 'deleteStopHold'])
-    ->name('hold.delete');
-
+// Optional: keep your POST for submitting the inquiry form
+Route::post('/stop-hold-inq', [StopHoldInqController::class, 'stopHoldInquiry'])
+->name('stopHold.inquiry');
 
 
-    
-
-Route::post('/stop-hold', [StopHoldDeleteController::class, 'deleteHold'])
+Route::post('/stop-hold', [StopHoldDeleteController::class, 'deleteStopHold'])
     ->name('stopHold.delete');
 
 
 Route::post('/hold-amount-add', [HoldAmountAddController::class, 'holdAmountAdd']);
 
-Route::post('/hold-delete', [ApiController::class, 'holdDelete']);
-Route::post('/stop-hold-all-add', [ApiController::class, 'holdAllAdd']);
-
-
+// Route::post('/stop-hold-all-add', [HoldAllAddController::class, 'holdAllAdd']);
+Route::post('/hold-all-add', [HoldAllAddController::class, 'holdAllAdd']);

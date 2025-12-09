@@ -99,10 +99,10 @@
                 <input type="text" class="form-control mb-2" name="AcctId" placeholder="Account ID" required>
                 <input type="text" class="form-control mb-2" name="StopHoldAmt" placeholder="Hold Amount" required>
                 <div class="d-flex gap-2">
-                    <button type="button" class="btn btn-primary" onclick="sendRequest('/hold-amount-add','holdAmountForm')">
+                    <button type="button" class="btn btn-outline-primary" onclick="sendRequest('/hold-amount-add','holdAmountForm')">
                         Add Hold Amount
                     </button>
-                    <button type="button" class="btn btn-outline-primary" onclick="sendRequest('/stop-hold-all-add','holdAmountForm')">
+                    <button type="button" class="btn btn-outline-primary" onclick="sendRequest('/hold-all-add','holdAmountForm')">
                         Hold All Add
                     </button>
                 </div>
@@ -121,7 +121,7 @@
             </form>
         </div>
 
-        <!-- Hold All Add -->
+        <!-- Hold All Add
         <div class="tab-pane fade" id="stopall" role="tabpanel" aria-labelledby="stopall-tab">
             <form id="stopAllForm">@csrf
                 <input type="text" class="form-control mb-2" name="Ctl2" placeholder="Ctl2" required>
@@ -131,7 +131,7 @@
                 <button type="button" class="btn btn-primary" onclick="sendRequest('/stop-hold-all-add','stopAllForm')">Submit</button>
             </form>
         </div>
-    </div>
+    </div> -->
 
     <h3 class="response-title">Response:</h3>
     <div id="response"></div>

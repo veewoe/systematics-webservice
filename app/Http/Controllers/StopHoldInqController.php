@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Http;
 
 class StopHoldInqController extends Controller
 {      
@@ -72,7 +73,6 @@ public function stopHoldInquiry(Request $request)
         'AcctId' => ['required', 'string', 'max:32'],
     ]);
  
-    // 2) Hard-coded TSRqHdr (exactly as your spec)
     $tsRqHdr = [
         "MessageFormat"    => "",
         "EmployeeId"       => "WI000001",
@@ -207,83 +207,37 @@ public function stopHoldInquiry(Request $request)
     }
 }
 
-public function deleteStopHold(Request $request)
+public function show(Request $request)
 {
-    $validated = $request->validate([
-        'AcctId'      => ['required', 'string', 'max:32'],
-        'StopHoldSeq' => ['required', 'string', 'max:20'],
-        'Ctl1'        => ['nullable', 'string', 'max:10'],
-        'Ctl2'        => ['nullable', 'string', 'max:10'],
-        'Ctl3'        => ['nullable', 'string', 'max:10'],
-        'Ctl4'        => ['nullable', 'string', 'max:10'],
-    ]);
+    $acctNo = $request->query('acctNo');
+    $cbr    = $request->query('cbr');
+    $cbi    = $request->query('cbi');
+    $cba    = $request->query('cba');
 
-    $tsRqHdr = [
-        "MessageFormat"    => "",
-        "EmployeeId"       => "WI000001",
-        "LanguageCd"       => "EN",
-        "ApplCode"         => "TS",
-        "FuncSecCode"      => "I",
-        "SourceCode"       => "",
-        "EffectiveDate"    => now()->toIso8601String(),
-        "TransTime"        => now()->toIso8601String(),
-        "SuperOverride"    => "",
-        "TellerOverride"   => "",
-        "PhysicalLocation" => "",
-        "Rebid"            => "N",
-        "Reentry"          => "N",
-        "Correction"       => "N",
-        "Training"         => "N",
-    ];
+    $payload = array_filter([
+        'acctNo' => $acctNo,
+        'cbr'    => $cbr,
+        'cbi'    => $cbi,
+        'cba'    => $cba,
+    ], fn ($v) => !is_null($v) && $v !== '');
 
-    $ctl1 = trim((string)($validated['Ctl1'] ?? "0008"));
-    $ctl2 = trim((string)($validated['Ctl2'] ?? "0001"));
-    $ctl3 = trim((string)($validated['Ctl3'] ?? "0000"));
-    $ctl4 = trim((string)($validated['Ctl4'] ?? "1888"));
+    $resp = Http::timeout(10)->retry(2, 200)->asForm()
+        ->post('http://172.22.242.21:18000/REST/WIIRSTH/?ActionCD=I', $payload);
 
-    $base = [
-        "TSRqHdr"     => $tsRqHdr,
-        "Ctl1"        => $ctl1,
-        "Ctl2"        => $ctl2,
-        "Ctl3"        => $ctl3,
-        "Ctl4"        => $ctl4,
-        "AcctId"      => $validated['AcctId'],
-        "StopHoldSeq" => $validated['StopHoldSeq'],
+    if ($resp->failed()) {
+        $msg = 'Inquiry failed. ' . \Illuminate\Support\Str::limit(strip_tags($resp->body()), 250);
 
-        // Uncomment the one your upstream spec needs:
-        // "TranCd"      => "D",
-        // "DeleteInd"   => "Y",
-    ];
-
-    $payload = ["WIIRSTHOperation" => $base];
-
-    try {
-        $response = $this->callUpstream($this->stopHoldUrl, $payload, false);
-
-        if (!$response->successful()) {
-            return back()->withErrors([
-                'api' => "Delete failed (HTTP {$response->status()})."
-            ]);
-        }
-
-        $data = $response->json();
-        [$tsHdr, $rows] = $this->parseOperationResponse(
-            $data,
-            'WIIRSTHOperationResponse',
-            'WIIRSTHRs'
-        );
-
-        $outcome = $this->upstreamOutcome($tsHdr);
-        if ($outcome['kind'] === 'error') {
-            return back()->withErrors(['api' => "{$outcome['code']}: {$outcome['text']}"]);
-        }
-
-        $msg = $outcome['message'] ?: ($outcome['text'] ?: "Stop/Hold seq {$validated['StopHoldSeq']} deleted.");
-        return back()->with('status', $msg);
-
-    } catch (\Throwable $e) {
-        Log::error('StopHold delete exception', ['message' => $e->getMessage()]);
-        return back()->withErrors(['api' => 'Unexpected error while deleting Stop/Hold.']);
+        return view('stopHold.inquiry', [
+            'details' => [],
+            'items'   => [],
+            'tsHdr'   => [],
+            'tsMsgs'  => [],
+        ])->withErrors(['api' => $msg]);
     }
+
+    $json = $resp->json();
+
+    return view('stopHold.inquiry', compact('details', 'items', 'tsHdr', 'tsMsgs'));
 }
+
 }
