@@ -8,86 +8,101 @@ use Illuminate\Support\Facades\Log;
 
 class StopHoldDeleteController extends Controller
 {
+    private $stopHoldUrl = 'http://172.22.242.21:18000/REST/WIIRSTH/?ActionCD=D';
 
-    
-public function deleteHold(Request $req)
-{
-    // Validate incoming payload
-    $data = $req->validate([
-        'acctNo'     => ['required', 'string'],
-        'sequenceNo' => ['required', 'integer'],
-        'cbr'        => ['nullable', 'string'],
-        'cbi'        => ['nullable', 'string'],
-        'cba'        => ['nullable', 'string'],
-        'tab'        => ['nullable', 'string'],
-    ]);
-
-    $url = 'http://172.22.242.21:18000/REST/WIIRSTH/?ActionCD=D';
-
-    try {
-        $resp = Http::timeout(10)
-            ->retry(2, 200)
-            ->asForm()
-            ->post($url, [
-                'acctNo'     => $data['acctNo'],
-                'sequenceNo' => $data['sequenceNo'],
-            ]);
-
-        if ($resp->failed()) {
-            $msg = 'Delete hold failed.';
-            $json = $resp->json();
-            if (is_array($json)) {
-                $hdr    = $json['WIIRSTHOperationResponse']['TSRsHdr'] ?? [];
-                $status = $hdr['TrnStatus'][0] ?? [];
-                $code   = $status['MsgCode'] ?? null;
-                $text   = $status['MsgText'] ?? null;
-                if ($code || $text) {
-                    $msg .= ' ' . trim(($code ?? '') . ' ' . ($text ?? ''));
-                }
-            } else {
-                $msg .= ' ' . $resp->body();
-            }
-
-            // Redirect back to inquiry route with error
-            return redirect()
-                ->route('stopHold.inquiry', [
-                    'cbr'    => $data['cbr'] ?? null,
-                    'cbi'    => $data['cbi'] ?? null,
-                    'cba'    => $data['cba'] ?? null,
-                    'acctNo' => $data['acctNo'],
-                    'tab'    => $data['tab'] ?? 'stopHold',
-                ])
-                ->withErrors(['api' => $msg]);
-        }
-
-        // Success → redirect to inquiry route with flash status
-        return redirect()
-            ->route('stopHold.inquiry', [
-                'cbr'    => $data['cbr'] ?? null,
-                'cbi'    => $data['cbi'] ?? null,
-                'cba'    => $data['cba'] ?? null,
-                'acctNo' => $data['acctNo'],
-                'tab'    => $data['tab'] ?? 'stopHold', // ensures we land on the right tab
-            ])
-            ->with('status', "Stop/Hold seq {$data['sequenceNo']} deleted.");
-
-    } catch (\Throwable $e) {
-        Log::error('StopHold delete exception', [
-            'message' => $e->getMessage(),
-            'acctNo'  => $data['acctNo'],
-            'seq'     => $data['sequenceNo'],
+    public function deleteStopHold(Request $request)
+    {
+        // Trim first so whitespace-only won't pass
+        $request->merge([
+            'AcctId'      => trim((string) $request->input('AcctId', '')),
+            'StopHoldSeq' => trim((string) $request->input('StopHoldSeq', '')),
+            'Ctl1'        => trim((string) $request->input('Ctl1', '')),
+            'Ctl2'        => trim((string) $request->input('Ctl2', '')),
+            'Ctl3'        => trim((string) $request->input('Ctl3', '')),
+            'Ctl4'        => trim((string) $request->input('Ctl4', '')),
         ]);
 
-        return redirect()
-            ->route('stopHold.inquiry', [
-                'cbr'    => $data['cbr'] ?? null,
-                'cbi'    => $data['cbi'] ?? null,
-                'cba'    => $data['cba'] ?? null,
-                'acctNo' => $data['acctNo'],
-                'tab'    => $data['tab'] ?? 'stopHold',
-            ])
-            ->withErrors(['api' => 'Unexpected error while deleting hold.']);
-    }
-}
+        $validated = $request->validate([
+            'AcctId'      => ['required', 'string', 'max:32'],
+            'StopHoldSeq' => ['required', 'string', 'max:20'],
+            'Ctl1'        => ['required', 'string', 'max:10', 'regex:/^\S+$/'],
+            'Ctl2'        => ['required', 'string', 'max:10', 'regex:/^\S+$/'],
+            'Ctl3'        => ['required', 'string', 'max:10', 'regex:/^\S+$/'],
+            'Ctl4'        => ['required', 'string', 'max:10', 'regex:/^\S+$/'],
+        ], [
+            'Ctl1.required' => 'Ctl1 is required.',
+            'Ctl2.required' => 'Ctl2 is required.',
+            'Ctl3.required' => 'Ctl3 is required.',
+            'Ctl4.required' => 'Ctl4 is required.',
+            'Ctl1.regex'    => 'Ctl1 must not contain spaces or be blank.',
+            'Ctl2.regex'    => 'Ctl2 must not contain spaces or be blank.',
+            'Ctl3.regex'    => 'Ctl3 must not contain spaces or be blank.',
+            'Ctl4.regex'    => 'Ctl4 must not contain spaces or be blank.',
+        ]);
 
+        $tsRqHdr = [
+            "MessageFormat"    => "",
+            "EmployeeId"       => "WI000001",
+            "LanguageCd"       => "EN",
+            "ApplCode"         => "TS",
+            "FuncSecCode"      => "I",
+            "SourceCode"       => "",
+            "EffectiveDate"    => now()->toIso8601String(),
+            "TransTime"        => now()->toIso8601String(),
+            "SuperOverride"    => "",
+            "TellerOverride"   => "",
+            "PhysicalLocation" => "",
+            "Rebid"            => "N",
+            "Reentry"          => "N",
+            "Correction"       => "N",
+            "Training"         => "N",
+        ];
+
+        // No defaults: take exactly what the user provided (already trimmed)
+        $ctl1 = $validated['Ctl1'];
+        $ctl2 = $validated['Ctl2'];
+        $ctl3 = $validated['Ctl3'];
+        $ctl4 = $validated['Ctl4'];
+
+        $base = [
+            "TSRqHdr"     => $tsRqHdr,
+            "Ctl1"        => $ctl1,
+            "Ctl2"        => $ctl2,
+            "Ctl3"        => $ctl3,
+            "Ctl4"        => $ctl4,
+            "AcctId"      => $validated['AcctId'],
+            "StopHoldSeq" => $validated['StopHoldSeq'],
+        ];
+
+        $payload = ["WIIRSTHOperation" => $base];
+
+        try {
+            $response = $this->callUpstream($this->stopHoldUrl, $payload, false);
+
+            if (!$response->successful()) {
+                return back()->withErrors([
+                    'api' => "Delete failed (HTTP {$response->status()})."
+                ]);
+            }
+
+            $data = $response->json();
+            [$tsHdr, $rows] = $this->parseOperationResponse(
+                $data,
+                'WIIRSTHOperationResponse',
+                'WIIRSTHRs'
+            );
+
+            $outcome = $this->upstreamOutcome($tsHdr);
+            if ($outcome['kind'] === 'error') {
+                return back()->withErrors(['api' => "{$outcome['code']}: {$outcome['text']}"]);
+            }
+
+            $msg = $outcome['message'] ?: ($outcome['text'] ?: "Stop/Hold seq {$validated['StopHoldSeq']} deleted.");
+            return back()->with('status', $msg);
+
+        } catch (\Throwable $e) {
+            Log::error('StopHold delete exception', ['message' => $e->getMessage()]);
+            return back()->withErrors(['api' => 'Unexpected error while deleting Stop/Hold.']);
+        }
+    }
 }

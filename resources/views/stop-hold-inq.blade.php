@@ -114,8 +114,6 @@
 
     <input type="hidden" name="acctNo" value="{{ $details['Account ID'] ?? '' }}">
     <input type="hidden" name="sequenceNo" value="{{ $row['Seq'] }}">
-
-    {{-- Optional: if your inquiry requires these to rebuild the same view --}}
     <input type="hidden" name="cbr" value="{{ $details['CBR'] ?? '' }}">
     <input type="hidden" name="cbi" value="{{ $details['CBI'] ?? '' }}">
     <input type="hidden" name="cba" value="{{ $details['CBA'] ?? '' }}">
@@ -125,7 +123,6 @@
         Delete
     </button>
 </form>
-
                             </td>
                         </tr>
                     @empty
@@ -136,7 +133,6 @@
                 </tbody>
             </table>
         </div>
-
         {{-- Transaction Status Messages --}}
         @isset($tsMsgs)
             <h5 class="mt-4">Transaction Status Messages</h5>

@@ -36,7 +36,7 @@ Route::post('/stop-hold-inq', [StopHoldInqController::class, 'stopHoldInquiry'])
 ->name('stopHold.inquiry');
 
 
-Route::post('/stop-hold', [StopHoldDeleteController::class, 'deleteHold'])
+Route::post('/stop-hold', [StopHoldDeleteController::class, 'deleteStopHold'])
     ->name('stopHold.delete');
 
 

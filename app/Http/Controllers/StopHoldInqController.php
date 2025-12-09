@@ -206,10 +206,6 @@ public function stopHoldInquiry(Request $request)
     }
 }
 
-    
-
-
-
 public function show(Request $request)
 {
     $acctNo = $request->query('acctNo');
@@ -217,7 +213,6 @@ public function show(Request $request)
     $cbi    = $request->query('cbi');
     $cba    = $request->query('cba');
 
-    // Build payload for Systematics — omit empty values to avoid upstream errors
     $payload = array_filter([
         'acctNo' => $acctNo,
         'cbr'    => $cbr,
@@ -229,7 +224,6 @@ public function show(Request $request)
         ->post('http://172.22.242.21:18000/REST/WIIRSTH/?ActionCD=I', $payload);
 
     if ($resp->failed()) {
-        // Show a friendly alert instead of an exception page
         $msg = 'Inquiry failed. ' . \Illuminate\Support\Str::limit(strip_tags($resp->body()), 250);
 
         return view('stopHold.inquiry', [
@@ -241,87 +235,8 @@ public function show(Request $request)
     }
 
     $json = $resp->json();
-    // TODO: Map $json → $details, $items, $tsHdr, $tsMsgs
 
     return view('stopHold.inquiry', compact('details', 'items', 'tsHdr', 'tsMsgs'));
 }
 
-
-
-
-// public function deleteStopHold(Request $request)
-// {
-//     $validated = $request->validate([
-//         'AcctId'      => ['required', 'string', 'max:32'],
-//         'StopHoldSeq' => ['required', 'string', 'max:20'],
-//         'Ctl1'        => ['nullable', 'string', 'max:10'],
-//         'Ctl2'        => ['nullable', 'string', 'max:10'],
-//         'Ctl3'        => ['nullable', 'string', 'max:10'],
-//         'Ctl4'        => ['nullable', 'string', 'max:10'],
-//     ]);
-
-//     $tsRqHdr = [
-//         "MessageFormat"    => "",
-//         "EmployeeId"       => "WI000001",
-//         "LanguageCd"       => "EN",
-//         "ApplCode"         => "TS",
-//         "FuncSecCode"      => "I",
-//         "SourceCode"       => "",
-//         "EffectiveDate"    => now()->toIso8601String(),
-//         "TransTime"        => now()->toIso8601String(),
-//         "SuperOverride"    => "",
-//         "TellerOverride"   => "",
-//         "PhysicalLocation" => "",
-//         "Rebid"            => "N",
-//         "Reentry"          => "N",
-//         "Correction"       => "N",
-//         "Training"         => "N",
-//     ];
-
-//     $ctl1 = trim((string)($validated['Ctl1'] ?? "0008"));
-//     $ctl2 = trim((string)($validated['Ctl2'] ?? "0001"));
-//     $ctl3 = trim((string)($validated['Ctl3'] ?? "0000"));
-//     $ctl4 = trim((string)($validated['Ctl4'] ?? "1888"));
-
-//     $base = [
-//         "TSRqHdr"     => $tsRqHdr,
-//         "Ctl1"        => $ctl1,
-//         "Ctl2"        => $ctl2,
-//         "Ctl3"        => $ctl3,
-//         "Ctl4"        => $ctl4,
-//         "AcctId"      => $validated['AcctId'],
-//         "StopHoldSeq" => $validated['StopHoldSeq'],
-//     ];
-
-//     $payload = ["WIIRSTHOperation" => $base];
-
-//     try {
-//         $response = $this->callUpstream($this->stopHoldUrl, $payload, false);
-
-//         if (!$response->successful()) {
-//             return back()->withErrors([
-//                 'api' => "Delete failed (HTTP {$response->status()})."
-//             ]);
-//         }
-
-//         $data = $response->json();
-//         [$tsHdr, $rows] = $this->parseOperationResponse(
-//             $data,
-//             'WIIRSTHOperationResponse',
-//             'WIIRSTHRs'
-//         );
-
-//         $outcome = $this->upstreamOutcome($tsHdr);
-//         if ($outcome['kind'] === 'error') {
-//             return back()->withErrors(['api' => "{$outcome['code']}: {$outcome['text']}"]);
-//         }
-
-//         $msg = $outcome['message'] ?: ($outcome['text'] ?: "Stop/Hold seq {$validated['StopHoldSeq']} deleted.");
-//         return back()->with('status', $msg);
-
-//     } catch (\Throwable $e) {
-//         Log::error('StopHold delete exception', ['message' => $e->getMessage()]);
-//         return back()->withErrors(['api' => 'Unexpected error while deleting Stop/Hold.']);
-//     }
-// }
 }
