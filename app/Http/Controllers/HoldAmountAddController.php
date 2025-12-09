@@ -53,7 +53,7 @@ class HoldAmountAddController extends Controller
     ]);
 
     $rawAmt = $validated['StopHoldAmt'];
-    $minorUnits = (int) round(((float) $rawAmt) * 100);
+    $minorUnits = (int) round(((float) $rawAmt));
     $paddedAmt = str_pad((string) $minorUnits, 17, '0', STR_PAD_LEFT);
 
     $payload = [
@@ -64,7 +64,8 @@ class HoldAmountAddController extends Controller
             "Ctl3"            => $validated['Ctl3'] ?? "",
             "Ctl4"            => $validated['Ctl4'] ?? "",
             "AcctId"          => $validated['AcctId'],
-            "RecsRequested"   => "0000",
+            "RecsRequested"   => "0110",
+            "IssueDt"        => now()->format('Ymd'),
             "TranCd"          => "34",
             "StopHoldAmt"     => $paddedAmt,
             "ExpirationDt"    => "",
@@ -94,23 +95,79 @@ class HoldAmountAddController extends Controller
         $opRes = $data['WIIRSTHOperationResponse'] ?? [];
         $tsHdr = $opRes['TSRsHdr'] ?? [];
 
+        
+// Assume $resp is the decoded JSON from WIIRSTH ADD
+$raw = $resp ?? [];
+$hdr = data_get($raw, 'WIIRSTHOperationResponse.TSRsHdr', []);
+$maxSeverity = strtoupper((string) data_get($hdr, 'MaxSeverity', 'I'));
+
+$trnStatus = collect(data_get($hdr, 'TrnStatus', []));
+$messages = $trnStatus->map(function ($m) {
+    return [
+        'Code'     => data_get($m, 'MsgCode'),
+        'Severity' => data_get($m, 'MsgSeverity'),
+        'Text'     => data_get($m, 'MsgText'),
+        'Account'  => data_get($m, 'MsgAcct'),
+        'Program'  => data_get($m, 'MsgPgm'),
+    ];
+})->all();
+
+// Map severity to alert style
+$severityMap = [
+    'I' => ['class' => 'alert-info',    'label' => 'Information'],
+    'W' => ['class' => 'alert-warning', 'label' => 'Warning'],
+    'E' => ['class' => 'alert-danger',  'label' => 'Error'],
+    'F' => ['class' => 'alert-danger',  'label' => 'Fatal'],
+];
+
+// Banner headline: prefer first message, else ProcessMessage
+$headline     = $trnStatus->first()['MsgText'] ?? data_get($hdr, 'ProcessMessage', 'PROCESS COMPLETE');
+$headlineCode = $trnStatus->first()['MsgCode'] ?? '';
+
+$banner = [
+    'show'    => true,
+    'class'   => ($severityMap[$maxSeverity]['class'] ?? 'alert-info'),
+    'label'   => ($severityMap[$maxSeverity]['label'] ?? 'Information'),
+    'code'    => $headlineCode,
+    'text'    => $headline,
+    'isError' => in_array($maxSeverity, ['W', 'E', 'F'], true),
+];
+
+// Optional: data for your existing Summary table
+$details = [
+    'MaxSeverity'    => $maxSeverity,
+    'ProcessMessage' => data_get($hdr, 'ProcessMessage'),
+    'NextDay'        => data_get($hdr, 'NextDay'),
+];
+
+
+
         $details = [
             'Severity'       => $tsHdr['MaxSeverity']    ?? 'N/A',
             'Process Message'=> trim($tsHdr['ProcessMessage'] ?? 'N/A'),
             'Next Day'       => $tsHdr['NextDay']        ?? 'N/A',
         ];
 
-        $messages = [];
-        foreach (($tsHdr['TrnStatus'] ?? []) as $msg) {
-            $messages[] = [
-                'Code'      => $msg['MsgCode']     ?? '—',
-                'Severity'  => $msg['MsgSeverity'] ?? '—',
-                'Text'      => $msg['MsgText']     ?? '—',
-                'Account'   => $msg['MsgAcct']     ?? '—',
-                'Program'   => $msg['MsgPgm']      ?? '—',
-              
-            ];
-        }
+      
+$messages = [];
+foreach (($tsHdr['TrnStatus'] ?? []) as $msg) {
+    $messages[] = [
+        'Code'     => $msg['MsgCode']     ?? '—',
+        'Severity' => $msg['MsgSeverity'] ?? '—',
+        'Text'     => $msg['MsgText']     ?? '—',
+        'Account'  => $msg['MsgAcct']     ?? '—',
+        'Program'  => $msg['MsgPgm']      ?? '—',
+    ];
+}
+
+// Keep only the last message
+if (!empty($messages)) {
+    $last = reset($messages);          // fetch last element
+    $messages = [$last];             // make it a single-item array for the Blade forelse
+} else {
+    $messages = [];                  // ensure it's an array
+}
+
 
         return view('hold-amount-add', [
             'details'  => $details,

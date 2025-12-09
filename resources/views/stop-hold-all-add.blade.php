@@ -26,45 +26,47 @@
             </table>
         </div>
 
-        <!-- Transaction Status Messages -->
-        <h5 class="mt-4">Transaction Status Messages</h5>
-        <div class="table-responsive">
-            <table class="table table-striped">
-                <thead class="table-light">
-                    <tr>
-                        <th>Code</th>
-                        <th>Severity</th>
-                        <th>Text</th>
-                        <th>Account</th>
-                        <th>Program</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse($messages as $m)
-                        <tr>
-                            <td>{{ $m['Code'] ?? '' }}</td>
-                            <td>
-                                <span class="badge
-                                    @if(($m['Severity'] ?? '') === 'A') bg-danger
-                                    @elseif(($m['Severity'] ?? '') === 'E') bg-warning text-dark
-                                    @elseif(($m['Severity'] ?? '') === 'I') bg-info text-dark
-                                    @else bg-secondary
-                                    @endif">
-                                    {{ $m['Severity'] ?? '' }}
-                                </span>
-                            </td>
-                            <td>{{ $m['Text'] ?? '' }}</td>
-                            <td>{{ $m['Account'] ?? '' }}</td>
-                            <td>{{ $m['Program'] ?? '' }}</td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="5" class="text-center text-muted">No status messages returned.</td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
+        
+<!-- Transaction Status Messages -->
+<h5 class="mt-4">Transaction Status Messages</h5>
+<div class="table-responsive">
+    <table class="table table-striped">
+        <thead class="table-light">
+            <tr>
+                <th>Code</th>
+                <th>Severity</th>
+                <th>Text</th>
+                <th>Account</th>
+                <th>Program</th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse($messages as $m)
+                <tr>
+                    <td>{{ $m['Code'] ?? '' }}</td>
+                    <td>
+                        <span class="badge
+                            @if(($m['Severity'] ?? '') === 'A') bg-danger
+                            @elseif(($m['Severity'] ?? '') === 'E') bg-warning text-dark
+                            @elseif(($m['Severity'] ?? '') === 'I') bg-info text-dark
+                            @else bg-secondary
+                            @endif">
+                            {{ $m['Severity'] ?? '' }}
+                        </span>
+                    </td>
+                    <td>{{ $m['Text'] ?? '' }}</td>
+                    <td>{{ $m['Account'] ?? '' }}</td>
+                    <td>{{ $m['Program'] ?? '' }}</td>
+                </tr>
+            @empty
+                <tr>
+                    <td colspan="5" class="text-center text-muted">No status messages returned.</td>
+                </tr>
+            @endforelse
+        </tbody>
+    </table>
+</div>
+
 
         <!-- Raw Response for Debugging -->
         @if(!empty($raw))

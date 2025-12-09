@@ -1,5 +1,6 @@
 
 <!-- hold-amount-add.blade.php -->
+
 <div class="card shadow-sm">
     <div class="card-header bg-primary text-white">
         <h4>Hold Amount – Add Result</h4>
@@ -9,7 +10,7 @@
         @if ($errors->any())
             <div class="alert alert-danger">{{ $errors->first() }}</div>
         @endif
-
+        
         <!-- Summary Section -->
         <h5 class="mb-3">Summary</h5>
         <div class="table-responsive">
@@ -41,7 +42,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse($messages as $m)
+                    @forelse(array_slice($messages, -1) as $m)
                         <tr>
                             <td>{{ $m['Code'] }}</td>
                             <td>
@@ -74,5 +75,6 @@
                 <pre class="bg-light p-3 rounded">{{ json_encode($raw, JSON_PRETTY_PRINT) }}</pre>
             </details>
         @endif
+
     </div>
 </div>

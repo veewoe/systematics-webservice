@@ -106,7 +106,7 @@ public function stopHoldInquiry(Request $request)
         "Ctl3"                => $ctl3,
         "Ctl4"                => $ctl4,
         "AcctId"              => $acctId,
-        "RecsRequested"       => "0005",
+        "RecsRequested"       => "0110",
         "StopInd"             => "",
         "HoldInd"             => "",
         "HoldAllInd"          => "",
