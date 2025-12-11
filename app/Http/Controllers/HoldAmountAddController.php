@@ -39,12 +39,35 @@ class HoldAmountAddController extends Controller
 
     public function holdAmountAdd(Request $request)
 {
+
+    
+/** @var \App\Http\Controllers\ErrorController $errCtrl */
+$errCtrl = app(\App\Http\Controllers\ErrorController::class);
+
+$emptyMsg = $errCtrl->missingFieldsMessage([
+    'Ctl2'   => $request->input('Ctl2'),
+    'Ctl3'   => $request->input('Ctl3'),
+    'Ctl4'   => $request->input('Ctl4'),
+    'AcctId' => $request->input('AcctId'),
+    'StopHoldAmt' => $request->input('StopHoldAmt'),
+]);
+
+if ($emptyMsg) {
+    $bag = new \Illuminate\Support\ViewErrorBag();
+    $bag->put('default', new \Illuminate\Support\MessageBag([$emptyMsg]));
+
+    return view('loan-details', [
+        'details'     => [],
+        'delinquency' => [],
+    ])->with('errors', $bag); // ✅ No redirect, just render view
+}
+
     $validated = $request->validate([
         'Ctl2'          => ['nullable', 'string', 'max:10'],
         'Ctl3'          => ['nullable', 'string', 'max:10'],
         'Ctl4'          => ['nullable', 'string', 'max:10'],
         'AcctId'        => ['required', 'string', 'max:32'],
-        'StopHoldAmt'   => ['required', 'regex:/^\d+(\.\d{1,2})?$/'],
+        'StopHoldAmt' => ['required', 'regex:/^\d+(\.\d{1,17})?$/'],
         'ExpirationDays'=> ['nullable', 'integer', 'min:1', 'max:999'],
         'StopHoldDesc'  => ['nullable', 'string', 'max:200'],
         'UniversalDesc' => ['nullable', 'string', 'max:1024'],
@@ -162,7 +185,7 @@ foreach (($tsHdr['TrnStatus'] ?? []) as $msg) {
 
 // Keep only the last message
 if (!empty($messages)) {
-    $last = reset($messages);          // fetch last element
+    $last = end($messages);          // fetch last element
     $messages = [$last];             // make it a single-item array for the Blade forelse
 } else {
     $messages = [];                  // ensure it's an array

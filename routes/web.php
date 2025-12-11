@@ -19,6 +19,8 @@ use App\Http\Controllers\LoanInquiryController;
 use App\Http\Controllers\StopHoldInqController;
 use App\Http\Controllers\StopHoldDeleteController;
 use App\Http\Controllers\HoldAllAddController;
+use App\Http\Controllers\RmabInquiryController;
+
 
 Route::get('/', [ApiController::class, 'index']);
 
@@ -43,3 +45,9 @@ Route::post('/hold-amount-add', [HoldAmountAddController::class, 'holdAmountAdd'
 
 // Route::post('/stop-hold-all-add', [HoldAllAddController::class, 'holdAllAdd']);
 Route::post('/hold-all-add', [HoldAllAddController::class, 'holdAllAdd']);
+
+
+Route::post('/stop-hold/delete', [StopHoldDeleteController::class, 'deleteStopHold'])
+     ->name('stophold.delete');
+Route::post('/rmab/inquiry', [RmabInquiryController::class, 'inquiry']);
+ 

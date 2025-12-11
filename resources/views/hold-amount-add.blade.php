@@ -11,22 +11,16 @@
             <div class="alert alert-danger">{{ $errors->first() }}</div>
         @endif
         
-        <!-- Summary Section -->
-        <h5 class="mb-3">Summary</h5>
-        <div class="table-responsive">
-            <table class="table table-bordered">
-                @forelse($details as $key => $value)
-                    <tr>
-                        <th style="width: 30%;">{{ $key }}</th>
-                        <td>{{ $value }}</td>
-                    </tr>
-                @empty
-                    <tr>
-                        <td colspan="2" class="text-center text-muted">No summary details available.</td>
-                    </tr>
-                @endforelse
-            </table>
-        </div>
+       @if (!empty($details['Process Message']))
+    <div style="padding: 10px; border-radius: 5px; background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb;">
+        ✅ {{ $details['Process Message'] }}
+    </div>
+@else
+    <div style="padding: 10px; border-radius: 5px; background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb;">
+        ❌ An error occured.
+    </div>
+@endif
+
         
         <!-- Transaction Status Messages -->
         <h5 class="mt-4">Transaction Status Messages</h5>
@@ -38,7 +32,7 @@
                         <th>Severity</th>
                         <th>Text</th>
                         <th>Account</th>
-                        <th>Program</th>
+                       <!-- <th>Program</th>-->
                     </tr>
                 </thead>
                 <tbody>
@@ -57,7 +51,7 @@
                             </td>
                             <td>{{ $m['Text'] }}</td>
                             <td>{{ $m['Account'] }}</td>
-                            <td>{{ $m['Program'] }}</td>
+                            <!-- <td>{{ $m['Program'] }}</td>-->
                         </tr>
                     @empty
                         <tr>

@@ -6,6 +6,9 @@ use Illuminate\Http\Request;
     use Illuminate\Support\Facades\Http;
     use Illuminate\Support\Str;
 
+use Illuminate\Support\ViewErrorBag;
+use Illuminate\Support\MessageBag;
+
 
 class LoanInquiryController extends Controller
 {
@@ -55,14 +58,32 @@ class LoanInquiryController extends Controller
     public function loansInquiry(Request $request)
     {
         
+        
+/** @var \App\Http\Controllers\ErrorController $errCtrl */
+$errCtrl = app(\App\Http\Controllers\ErrorController::class);
+
+$emptyMsg = $errCtrl->missingFieldsMessage([
+    'Ctl2'   => $request->input('Ctl2'),
+    'Ctl3'   => $request->input('Ctl3'),
+    'Ctl4'   => $request->input('Ctl4'),
+    'AcctId' => $request->input('AcctId'),
+]);
+
+if ($emptyMsg) {
+    $bag = new \Illuminate\Support\ViewErrorBag();
+    $bag->put('default', new \Illuminate\Support\MessageBag([$emptyMsg]));
+
+    return view('loan-details', [
+        'details'     => [],
+        'delinquency' => [],
+    ])->with('errors', $bag); // ✅ No redirect, just render view
+}
         $validated = $request->validate([
-            'Ctl2'   => 'nullable|string|max:10',
-            'Ctl3'   => 'nullable|string|max:10',
-            'Ctl4'   => 'nullable|string|max:10',
-            'AcctId' => 'required|string|max:30',
-
+            'Ctl2'   => 'required|string|max:4',
+            'Ctl3'   => 'required|string|max:4',
+            'Ctl4'   => 'required|string|max:4',
+            'AcctId' => 'required|string|max:20',
         ]);
-
         // Build payload
         $payload = [
             "WILRACTOperation" => [

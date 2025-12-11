@@ -7,32 +7,68 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-
-    <style>
-        /* Visual style for JSON/HTML response blocks */
-        pre {
-            background: #f8f9fa;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: .25rem;
-            white-space: pre-wrap;       
-            word-break: break-word;
-        }
-        .tab-pane {
-            padding-bottom: .5rem;
-        }
-        .tab-pane form > :last-child {
-            margin-bottom: 0 !important;
-        }
-        .response-title {
-            margin-top: .75rem;
-        }
-        #response {
-            margin-top: .5rem;            
-        }
-    </style>
+      <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+ 
+  <!-- Custom styles -->
+  <style>
+    /* Tabs: inactive black text / white bg; active white text / black bg */
+    .nav-tabs .nav-link {
+      color: #000;
+      background-color: #fff;
+      border-color: #dee2e6 #dee2e6 #fff;
+    }
+    .nav-tabs .nav-link:hover,
+    .nav-tabs .nav-link:focus {
+      color: #000;
+      background-color: #f8f9fa;
+    }
+    .nav-tabs .nav-link.active,
+    .nav-tabs .nav-item.show .nav-link {
+      color: #fff;
+      background-color: #000;
+      border-color: #000 #000 #fff;
+    }
+ 
+    /* Content panel look */
+    .tab-content {
+      border: 1px solid #dee2e6;
+      border-top: none;
+      padding: 1rem;
+      background-color: #fff;
+    }
+ 
+    /* Black action buttons */
+    .btn-black {
+      color: #fff !important;
+      background-color: #000 !important;
+      border-color: #000 !important;
+    }
+    .btn-black:hover,
+    .btn-black:focus {
+      color: #fff !important;
+      background-color: #222 !important;
+      border-color: #222 !important;
+    }
+ 
+    /* Input improvements */
+    .form-label {
+      font-weight: 600;
+    }
+    .form-control {
+      border-radius: 0.5rem;     /* softer corners */
+      padding: 0.6rem 0.75rem;   /* slightly larger touch area */
+    }
+ 
+    /* Helper: show small hint text */
+    .form-text {
+      color: #6c757d;
+    }
+    .container {
+        width: 80%;
+        max-width: none; /* remove Bootstrap's max-width limit */
+    }
+  </style>
 </head>
 <body class="container mt-4">
     <h2 class="mb-3">Systematics API POC</h2>
@@ -54,17 +90,12 @@
                 Hold Amount Add
             </button>
         </li>
-        <!-- <li class="nav-item" role="presentation">
-            <button class="nav-link" id="holddelete-tab" data-bs-toggle="tab" data-bs-target="#holddelete" type="button" role="tab">
-                Hold Delete
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="stopall-tab" data-bs-toggle="tab" data-bs-target="#stopall" type="button" role="tab">
-                Hold All Add
-            </button>
-        </li> -->
-    </ul>
+          <li class="nav-item" role="presentation">
+      <button class="nav-link" id="rmab-tab" data-bs-toggle="tab" data-bs-target="#rmab" type="button" role="tab">
+        RMAB
+      </button>
+    </li>
+  </ul>
 
     <!-- Tab Content -->
     <div class="tab-content" id="myTabContent">
@@ -97,7 +128,7 @@
                 <input type="text" class="form-control mb-2" name="Ctl3" placeholder="Ctl3" required>
                 <input type="text" class="form-control mb-2" name="Ctl4" placeholder="Ctl4" required>
                 <input type="text" class="form-control mb-2" name="AcctId" placeholder="Account ID" required>
-                <input type="text" class="form-control mb-2" name="StopHoldAmt" placeholder="Hold Amount" required>
+                <input type="text" class="form-control mb-2" name="StopHoldAmt" placeholder="Hold Amount">
                 <div class="d-flex gap-2">
                     <button type="button" class="btn btn-outline-primary" onclick="sendRequest('/hold-amount-add','holdAmountForm')">
                         Add Hold Amount
@@ -121,17 +152,25 @@
             </form>
         </div>
 
-        <!-- Hold All Add
-        <div class="tab-pane fade" id="stopall" role="tabpanel" aria-labelledby="stopall-tab">
-            <form id="stopAllForm">@csrf
-                <input type="text" class="form-control mb-2" name="Ctl2" placeholder="Ctl2" required>
-                <input type="text" class="form-control mb-2" name="Ctl3" placeholder="Ctl3" required>
-                <input type="text" class="form-control mb-2" name="Ctl4" placeholder="Ctl4" required>
-                <input type="text" class="form-control mb-2" name="AcctId" placeholder="Account ID" required>
-                <button type="button" class="btn btn-primary" onclick="sendRequest('/stop-hold-all-add','stopAllForm')">Submit</button>
-            </form>
-        </div>
-    </div> -->
+        <!-- RMAB Inquiry (compact) -->
+    <div class="tab-pane fade" id="rmab" role="tabpanel" aria-labelledby="rmab-tab">
+      <form id="rmabForm">@csrf
+        <label class="form-label" for="rmabCtl2">Ctl2</label>
+        <input id="rmabCtl2" type="number" inputmode="numeric" class="form-control mb-2 only-digits" name="Ctl2" placeholder="e.g., 0000" required>
+ 
+        <label class="form-label" for="rmabCtl3">Ctl3</label>
+        <input id="rmabCtl3" type="number" inputmode="numeric" class="form-control mb-2 only-digits" name="Ctl3" placeholder="e.g., 0000" required>
+ 
+        <label class="form-label" for="rmabCtl4">Ctl4</label>
+        <input id="rmabCtl4" type="number" inputmode="numeric" class="form-control mb-2 only-digits" name="Ctl4" placeholder="e.g., 0000" required>
+ 
+        <label class="form-label" for="rmabCustId">Customer ID</label>
+        <input id="rmabCustId" type="number" inputmode="numeric" class="form-control mb-3 only-digits" name="CustId" placeholder="e.g., 3597673" required>
+ 
+        <button type="button" class="btn btn-black" onclick="sendRequest('/rmab/inquiry','rmabForm')">Submit</button>
+      </form>
+    </div>
+  </div>
 
     <h3 class="response-title">Response:</h3>
     <div id="response"></div>

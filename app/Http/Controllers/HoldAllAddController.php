@@ -52,12 +52,32 @@ class HoldAllAddController extends Controller
 
 public function holdAllAdd(Request $request)
 {
+    
+/** @var \App\Http\Controllers\ErrorController $errCtrl */
+$errCtrl = app(\App\Http\Controllers\ErrorController::class);
+
+$emptyMsg = $errCtrl->missingFieldsMessage([
+    'Ctl2'   => $request->input('Ctl2'),
+    'Ctl3'   => $request->input('Ctl3'),
+    'Ctl4'   => $request->input('Ctl4'),
+    'AcctId' => $request->input('AcctId'),
+]);
+
+if ($emptyMsg) {
+    $bag = new \Illuminate\Support\ViewErrorBag();
+    $bag->put('default', new \Illuminate\Support\MessageBag([$emptyMsg]));
+
+    return view('loan-details', [
+        'details'     => [],
+        'delinquency' => [],
+    ])->with('errors', $bag); // ✅ No redirect, just render view
+}
+
     $validated = $request->validate([
         'Ctl2'          => ['nullable', 'string', 'max:10'],
         'Ctl3'          => ['nullable', 'string', 'max:10'],
         'Ctl4'          => ['nullable', 'string', 'max:10'],
         'AcctId'        => ['required', 'string', 'max:32'],
-        'StopHoldAmt'   => ['required', 'regex:/^\d+(\.\d{1,2})?$/'],
         'ExpirationDays'=> ['nullable', 'integer', 'min:1', 'max:999'],
         'StopHoldDesc'  => ['nullable', 'string', 'max:200'],
         'UniversalDesc' => ['nullable', 'string', 'max:1024'],
@@ -65,9 +85,6 @@ public function holdAllAdd(Request $request)
         'Branch'        => ['nullable', 'string', 'max:32'],
     ]);
 
-    $rawAmt = $validated['StopHoldAmt'];
-    $minorUnits = (int) round(((float) $rawAmt));
-    $paddedAmt = str_pad((string) $minorUnits, 17, '0', STR_PAD_LEFT);
 
     $payload = [
         "WIIRSTHOperation" => [
@@ -95,10 +112,10 @@ public function holdAllAdd(Request $request)
             "LowSeq" => "",
             "HighSeq" => "",
             "TranCd" => "34",
-            "StopHoldAmt" => $paddedAmt,
+            "StopHoldAmt" => "",
             "ExpirationDt" => "",
             "ExpirationDays" => $request->input('ExpirationDays', '15'),
-            "IssueDt" => "",
+            "IssueDt"        => now()->format('Ymd'),
             "InitiatedBy" => $request->input('InitiatedBy', ''),
             "StopHoldType" => "BAL",
             "StopHoldDesc" => $request->input('StopHoldDesc', 'PAYEE UDTdescription'),
@@ -143,14 +160,17 @@ public function holdAllAdd(Request $request)
             ];
         }
 
-        // ✅ Keep only the last message
-        if (!empty($messages)) {
-            $messages = [reset($messages)];
+
+        if (!empty($tsHdr['ProcessMessage'])) {
+            $lastmessages = [end($messages)];
+        }
+        else {
+         $lastmessages = [reset($messages)];   // If not complete, show all messages
         }
 
         return view('stop-hold-all-add', [
             'details'  => $details,
-            'messages' => $messages,
+            'messages' => $lastmessages,
             'raw'      => $data,
         ]);
     } catch (\Throwable $e) {

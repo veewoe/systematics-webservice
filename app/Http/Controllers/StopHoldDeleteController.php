@@ -97,8 +97,17 @@ class StopHoldDeleteController extends Controller
                 return back()->withErrors(['api' => "{$outcome['code']}: {$outcome['text']}"]);
             }
 
-            $msg = $outcome['message'] ?: ($outcome['text'] ?: "Stop/Hold seq {$validated['StopHoldSeq']} deleted.");
-            return back()->with('status', $msg);
+            
+
+$msg = $outcome['message'] ?: ($outcome['text'] ?: "Stop/Hold seq {$validated['StopHoldSeq']} deleted.");
+return view('stop-hold-inq', [
+    'status' => $msg,
+    // Also pass the inquiry data if needed
+    'details' => $details ?? [],
+    'items' => $items ?? []
+]);
+
+
 
         } catch (\Throwable $e) {
             Log::error('StopHold delete exception', ['message' => $e->getMessage()]);

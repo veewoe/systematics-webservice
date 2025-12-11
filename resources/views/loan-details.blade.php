@@ -1,5 +1,5 @@
 @if ($errors->any())
-    <div class="alert alert-danger">{{ $errors->first() }}</div>
+    <div class="alert alert-danger">{!! $errors->first() !!}</div>
 @else
    
     <table class="table table-sm">

@@ -50,8 +50,11 @@ private function upstreamErrorMessage(?array $tsHdr, bool $rowsPresent): ?string
         $status  = ($tsHdr['TrnStatus'] ?? [])[0] ?? [];
         $errormsg = $status['MsgText'];
         $msgCode = trim((string)($status['MsgCode'] ?? 'UNKNOWN'));
+     
         $msgText = trim((string)($status['MsgText'] ?? 'Upstream error'));
-        return "Error Code:{$msgCode}: {$msgText}: Severity: {$tsHdr['MaxSeverity']}";
+        $msgText = preg_replace('/\d+/', '', $msgText); // remove all digits
+
+        return "<h3>Error Code: {$msgCode}</h3><b>{$msgText}: <br>Severity: {$tsHdr['MaxSeverity']}</b>";
     }
     return null;
 }
@@ -64,8 +67,41 @@ private function parseOperationResponse(array $data, string $opResponseKey, stri
     return [$tsHdr, $rows];
 }
         
+public function missingFieldsMessage(array $fields): ?string
+{
+    foreach ($fields as $key => $value) {
+        if (trim((string)$value) === '') {
+            // If any field is empty, return formatted HTML message
+            return "<h3>Error</h3><b>Please fill out all the required fields.</b>";
+        }
+    }
+    return null; // All fields are filled
+}
+
 public function stopHoldInquiry(Request $request)
 {
+
+    
+/** @var \App\Http\Controllers\ErrorController $errCtrl */
+$errCtrl = app(\App\Http\Controllers\ErrorController::class);
+
+$emptyMsg = $errCtrl->missingFieldsMessage([
+    'Ctl2'   => $request->input('Ctl2'),
+    'Ctl3'   => $request->input('Ctl3'),
+    'Ctl4'   => $request->input('Ctl4'),
+    'AcctId' => $request->input('AcctId'),
+]);
+
+if ($emptyMsg) {
+    $bag = new \Illuminate\Support\ViewErrorBag();
+    $bag->put('default', new \Illuminate\Support\MessageBag([$emptyMsg]));
+
+    return view('loan-details', [
+        'details'     => [],
+        'delinquency' => [],
+    ])->with('errors', $bag); // ✅ No redirect, just render view
+}
+
     $validated = $request->validate([
         'Ctl2'   => ['nullable', 'string', 'max:10'],
         'Ctl3'   => ['nullable', 'string', 'max:10'],
@@ -190,6 +226,7 @@ public function stopHoldInquiry(Request $request)
                 'Initiated By'    => $row['InitiatedBy'] ?? '—',
                 'Branch'          => $row['Branch'] ?? '—',
                 'Description'     => $row['StopHoldDesc'] ?? '—',
+                'Status'     => $row['OnlineDelete'] ?? '—',
             ];
         }
  

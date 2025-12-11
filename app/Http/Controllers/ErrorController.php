@@ -68,13 +68,25 @@ class ErrorController extends Controller
             $processMsg = trim((string)($tsHdr['ProcessMessage'] ?? ''));
             $display    = $processMsg ?: $msgText;
 
-        return "Error Code: {$msgCode} - {$msgText}: Severity: {$tsHdr['MaxSeverity']}";
+        return "<h3>Error Code: {$msgCode}</h3><b>{$msgText}: <br>Severity: {$tsHdr['MaxSeverity']}</b>";
         }
 
         return null;
     }
 
     
+public function missingFieldsMessage(array $fields): ?string
+{
+    // Trim and check each field
+    foreach ($fields as $key => $value) {
+        if (trim((string)$value) === '') {
+            // If any field is empty, return a formatted HTML message
+            return "<h3>Error</h3><b>Please fill out all the required fields.</b>";
+        }
+    }
+    return null; // All fields are filled
+}
+
     public function redirectWithError(string $message, array $context = []): RedirectResponse
     {
         return redirect()->back()->withErrors($message)->withInput();
