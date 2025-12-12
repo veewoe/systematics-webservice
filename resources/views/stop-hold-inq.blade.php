@@ -61,9 +61,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    /
                     @forelse($items as $row)
-                    /
                         @php
                             // Safe helpers
                             $seq = $row['Seq'] ?? '';
@@ -115,7 +113,6 @@
  
 <td>
    
-   
 <form action="{{ route('stopHold.delete') }}" method="POST" class="d-inline"
       data-seq="{{ $row['Seq'] }}"
       onsubmit="return confirm('Delete stop/hold seq ' + this.dataset.seq + '? This cannot be undone.');">
@@ -155,31 +152,13 @@
 @endif
 </div>
 
+
+
+@if(!empty($status))
 <script>
-function deleteStopHold(formEl) {
-    const seq = formEl.dataset.seq || '';
-    if (!confirm('Delete stop/hold seq ' + seq + '? This cannot be undone.')) {
-        return false;
-    }
-
-    const formData = new FormData(formEl);
-    const payload = Object.fromEntries(formData.entries());
-
-    fetch(formEl.action, {
-        method: 'POST',
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': payload._token || '{{ csrf_token() }}'
-        },
-        body: JSON.stringify(payload)
-    })
-    .then(res => res.text())
-    .then(html => {
-        document.getElementById('stopHoldSection').innerHTML = html;
-    })
-    .catch(() => alert('Delete failed.'));
-
-    return false; // prevent normal submit
-}
+    document.addEventListener('DOMContentLoaded', function () {
+        alert(@json($status));
+    });
 </script>
+@endif
+
