@@ -1,0 +1,74 @@
+[1mdiff --git a/resources/views/rmab-details-blade.php b/resources/views/rmab-details-blade.php[m
+[1mindex 7540c7d..7d6ae51 100644[m
+[1m--- a/resources/views/rmab-details-blade.php[m
+[1m+++ b/resources/views/rmab-details-blade.php[m
+[36m@@ -78,5 +78,4 @@[m
+         <div class="alert alert-info">No accounts found.</div>[m
+     @endif[m
+  [m
+[31m-@endif[m
+[31m- [m
+\ No newline at end of file[m
+[32m+[m[32m@endif[m
+\ No newline at end of file[m
+[1mdiff --git a/resources/views/stop-hold-inq.blade.php b/resources/views/stop-hold-inq.blade.php[m
+[1mindex 6dced93..0aec930 100644[m
+[1m--- a/resources/views/stop-hold-inq.blade.php[m
+[1m+++ b/resources/views/stop-hold-inq.blade.php[m
+[36m@@ -61,9 +61,7 @@[m
+                     </tr>[m
+                 </thead>[m
+                 <tbody>[m
+[31m-                    /[m
+                     @forelse($items as $row)[m
+[31m-                    /[m
+                         @php[m
+                             // Safe helpers[m
+                             $seq = $row['Seq'] ?? '';[m
+[36m@@ -115,7 +113,6 @@[m
+  [m
+ <td>[m
+    [m
+[31m-   [m
+ <form action="{{ route('stopHold.delete') }}" method="POST" class="d-inline"[m
+       data-seq="{{ $row['Seq'] }}"[m
+       onsubmit="return confirm('Delete stop/hold seq ' + this.dataset.seq + '? This cannot be undone.');">[m
+[36m@@ -155,31 +152,13 @@[m [mclass="btn btn-sm btn-outline-danger"[m
+ @endif[m
+ </div>[m
+ [m
+[31m-<script>[m
+[31m-function deleteStopHold(formEl) {[m
+[31m-    const seq = formEl.dataset.seq || '';[m
+[31m-    if (!confirm('Delete stop/hold seq ' + seq + '? This cannot be undone.')) {[m
+[31m-        return false;[m
+[31m-    }[m
+[31m-[m
+[31m-    const formData = new FormData(formEl);[m
+[31m-    const payload = Object.fromEntries(formData.entries());[m
+ [m
+[31m-    fetch(formEl.action, {[m
+[31m-        method: 'POST',[m
+[31m-        headers: {[m
+[31m-            'X-Requested-With': 'XMLHttpRequest',[m
+[31m-            'Content-Type': 'application/json',[m
+[31m-            'X-CSRF-TOKEN': payload._token || '{{ csrf_token() }}'[m
+[31m-        },[m
+[31m-        body: JSON.stringify(payload)[m
+[31m-    })[m
+[31m-    .then(res => res.text())[m
+[31m-    .then(html => {[m
+[31m-        document.getElementById('stopHoldSection').innerHTML = html;[m
+[31m-    })[m
+[31m-    .catch(() => alert('Delete failed.'));[m
+ [m
+[31m-    return false; // prevent normal submit[m
+[31m-}[m
+[32m+[m[32m@if(!empty($status))[m
+[32m+[m[32m<script>[m
+[32m+[m[32m    document.addEventListener('DOMContentLoaded', function () {[m
+[32m+[m[32m        alert(@json($status));[m
+[32m+[m[32m    });[m
+ </script>[m
+[32m+[m[32m@endif[m
+[41m+[m

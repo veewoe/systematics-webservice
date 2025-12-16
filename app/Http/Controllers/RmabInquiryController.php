@@ -1,9 +1,10 @@
 <?php
 
 namespace App\Http\Controllers;
-
+use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 
+ 
 class RmabInquiryController extends Controller
 {
     // Upstream base URL for RMAB (Customer-Accounts relation)
@@ -87,6 +88,8 @@ class RmabInquiryController extends Controller
         /** @var \App\Http\Controllers\ErrorController $errCtrl */
         $errCtrl = app(\App\Http\Controllers\ErrorController::class);
  
+
+        
         // Call upstream
         $response = $errCtrl->callUpstream($this->rmabUrl, $payload, true, 10);
  
@@ -227,3 +230,4 @@ class RmabInquiryController extends Controller
         ]);
     }
 }
+ 
