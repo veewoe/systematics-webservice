@@ -94,7 +94,16 @@
       <button class="nav-link" id="rmab-tab" data-bs-toggle="tab" data-bs-target="#rmab" type="button" role="tab">
         RMAB
       </button>
-    </li>
+      </li>
+      
+      <!-- Tab Navigation Item -->
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="party-rel-tab" data-bs-toggle="tab" data-bs-target="#party-rel-pane"
+                type="button" role="tab" aria-controls="party-rel-pane" aria-selected="false">
+          Party Rel
+        </button>
+      </li>
+
   </ul>
 
     <!-- Tab Content -->
@@ -106,7 +115,7 @@
                 <input type="text" class="form-control mb-2" name="Ctl3" placeholder="Ctl3" required>
                 <input type="text" class="form-control mb-2" name="Ctl4" placeholder="Ctl4" required>
                 <input type="text" class="form-control mb-2" name="AcctId" placeholder="Account ID" required>
-                <button type="button" class="btn btn-primary" onclick="sendRequest('/loans-inq','loanForm')">Submit</button>
+                <button type="button" class="btn btn-black" onclick="sendRequest('/loans-inq','loanForm')">Submit</button>
             </form>
         </div>
 
@@ -117,7 +126,7 @@
                 <input type="text" class="form-control mb-2" name="Ctl3" placeholder="Ctl3" required>
                 <input type="text" class="form-control mb-2" name="Ctl4" placeholder="Ctl4" required>
                 <input type="text" class="form-control mb-2" name="AcctId" placeholder="Account ID" required>
-                <button type="button" class="btn btn-primary" onclick="sendRequest('/stop-hold-inq','stopInqForm')">Submit</button>
+                <button type="button" class="btn btn-black" onclick="sendRequest('/stop-hold-inq','stopInqForm')">Submit</button>
             </form>
         </div>
 
@@ -130,10 +139,10 @@
                 <input type="text" class="form-control mb-2" name="AcctId" placeholder="Account ID" required>
                 <input type="text" class="form-control mb-2" name="StopHoldAmt" placeholder="Hold Amount">
                 <div class="d-flex gap-2">
-                    <button type="button" class="btn btn-outline-primary" onclick="sendRequest('/hold-amount-add','holdAmountForm')">
+                    <button type="button" class="btn btn-black" onclick="sendRequest('/hold-amount-add','holdAmountForm')">
                         Add Hold Amount
                     </button>
-                    <button type="button" class="btn btn-outline-primary" onclick="sendRequest('/hold-all-add','holdAmountForm')">
+                    <button type="button" class="btn btn-black" onclick="sendRequest('/hold-all-add','holdAmountForm')">
                         Hold All Add
                     </button>
                 </div>
@@ -170,6 +179,23 @@
         <button type="button" class="btn btn-black" onclick="sendRequest('/rmab/inquiry','rmabForm')">Submit</button>
       </form>
     </div>
+
+    <!-- Party Rel -->
+        
+        <div class="tab-pane fade" id="party-rel-pane" role="tabpanel" aria-labelledby="party-rel-tab">
+          <form id="partyRelForm">@csrf
+                <input type="text" class="form-control mb-2" name="Ctl1" placeholder="Ctl1 (e.g., 0000)" required>
+                <input type="text" class="form-control mb-2" name="Ctl2" placeholder="Ctl2 (e.g., 0001)" required>
+                <input type="text" class="form-control mb-2" name="Ctl3" placeholder="Ctl3 (e.g., 0000)" required>
+                <input type="text" class="form-control mb-2" name="Ctl4" placeholder="Ctl4 (e.g., 1084)" required>
+                <input type="text" class="form-control mb-2" name="CustId" placeholder="Customer ID (e.g., 00000001006051)" required>
+                <button type="button" class="btn btn-dark mt-2" onclick="sendRequest('/party-rel/store','partyRelForm')">
+                      Submit Party Rel
+                </button>
+
+            </form>
+        </div>
+
   </div>
 
     <h3 class="response-title">Response:</h3>
@@ -179,6 +205,12 @@
     async function sendRequest(url, formId) {
         const form = document.getElementById(formId);
         const formData = new FormData(form);
+
+  // Debug: log what we're sending
+  console.log('Submitting entries:');
+  for (const [k, v] of formData.entries()) {
+    console.log(k, v);
+  }
 
         // Laravel CSRF token
         const csrf = document.querySelector('meta[name="csrf-token"]');
