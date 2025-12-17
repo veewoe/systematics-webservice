@@ -27,8 +27,7 @@
     <div class="col-sm-6"><strong>Ctl2:</strong> {{ $summary['Ctl2'] }}</div>
     <div class="col-sm-6"><strong>Ctl3:</strong> {{ $summary['Ctl3'] }}</div>
     <div class="col-sm-6"><strong>Ctl4:</strong> {{ $summary['Ctl4'] }}</div>
-    <div class="col-sm-6"><strong>CustId:</strong> <span class="font-monospace">{{ $summary['CustId'] }}</span></div>
-    <div class="col-sm-6"><strong>Relationship More Indicator:</strong> {{ $summary['RelMoreInd'] }}</div>
+    <div class="col-sm-6"><strong>Customer ID:</strong> <span class="font-monospace">{{ $summary['CustId'] }}</span></div>
     <div class="col-12"><strong>Rest Of Related Key:</strong> <span class="font-monospace">{{ $summary['RestOfRelatedKey'] }}</span></div>
   </div>
 </div>
@@ -41,9 +40,9 @@
     <table class="table table-sm table-striped align-middle" id="partyRelTable">
       <thead>
         <tr>
-          <th>ToAcctKey</th>
-          <th>AcctType</th>
-          <th class="text-end">ApplBalance1</th>
+          <th>To Account Key</th>
+          <th>Account Type</th>
+          <th class="text-end">Applied Balance 1</th>
         </tr>
       </thead>
       <tbody id="partyRelTbody">
