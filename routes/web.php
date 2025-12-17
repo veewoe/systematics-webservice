@@ -21,6 +21,8 @@ use App\Http\Controllers\StopHoldDeleteController;
 use App\Http\Controllers\HoldAllAddController;
 use App\Http\Controllers\RmabInquiryController;
 
+use App\Http\Controllers\PartyRelController;
+
 
 Route::get('/', [ApiController::class, 'index']);
 
@@ -51,3 +53,6 @@ Route::post('/stop-hold/delete', [StopHoldDeleteController::class, 'deleteStopHo
      ->name('stophold.delete');
 Route::post('/rmab/inquiry', [RmabInquiryController::class, 'inquiry']);
  
+
+
+Route::post('/party-rel/store', [PartyRelController::class, 'store'])->name('party-rel.store');
