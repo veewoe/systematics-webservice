@@ -28,8 +28,8 @@
     <div class="col-sm-6"><strong>Ctl3:</strong> {{ $summary['Ctl3'] }}</div>
     <div class="col-sm-6"><strong>Ctl4:</strong> {{ $summary['Ctl4'] }}</div>
     <div class="col-sm-6"><strong>CustId:</strong> <span class="font-monospace">{{ $summary['CustId'] }}</span></div>
-    <div class="col-sm-6"><strong>RelMoreInd:</strong> {{ $summary['RelMoreInd'] }}</div>
-    <div class="col-12"><strong>RestOfRelatedKey:</strong> <span class="font-monospace">{{ $summary['RestOfRelatedKey'] }}</span></div>
+    <div class="col-sm-6"><strong>Relationship More Indicator:</strong> {{ $summary['RelMoreInd'] }}</div>
+    <div class="col-12"><strong>Rest Of Related Key:</strong> <span class="font-monospace">{{ $summary['RestOfRelatedKey'] }}</span></div>
   </div>
 </div>
 

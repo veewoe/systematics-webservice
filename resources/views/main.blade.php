@@ -190,7 +190,7 @@
                 <input type="text" class="form-control mb-2" name="Ctl4" placeholder="Ctl4 (e.g., 1084)" required>
                 <input type="text" class="form-control mb-2" name="CustId" placeholder="Customer ID (e.g., 00000001006051)" required>
                 <button type="button" class="btn btn-dark mt-2" onclick="sendRequest('/party-rel/store','partyRelForm')">
-                      Submit Party Rel
+                      Submit
                 </button>
 
             </form>
